@@ -9,9 +9,11 @@
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import settings
@@ -188,6 +190,29 @@ app.include_router(resource_routes.router)
 @app.get("/health", tags=["系统"], summary="健康检查")
 async def health_check():
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
+
+# ==================== 前端静态文件托管 ====================
+# 构建后的前端产物放在 web/dist 目录下，由 FastAPI 直接托管
+_web_dist = Path(__file__).resolve().parent.parent / "web" / "dist"
+if _web_dist.exists():
+    app.mount("/assets", StaticFiles(directory=_web_dist / "assets"), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        """SPA 回退：所有非 API 路径返回 index.html"""
+        # 如果是 API 路径，不走这里
+        if full_path.startswith(("api/", "admin/", "health", "docs", "openapi", "redoc")):
+            return Response(status_code=404, content="Not Found")
+        # 查找静态文件
+        file_path = _web_dist / full_path
+        if file_path.is_file():
+            return StaticFiles(directory=_web_dist).get_response(full_path, {})
+        # SPA 回退到 index.html
+        index = _web_dist / "index.html"
+        if index.exists():
+            return Response(content=index.read_text(encoding="utf-8"), media_type="text/html")
+        return Response(status_code=404, content="Frontend not built. Run 'npm run build' in web/ directory.")
 
 
 @app.get("/", tags=["系统"], summary="系统信息")
