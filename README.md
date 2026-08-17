@@ -235,6 +235,43 @@ curl -X POST http://localhost:8000/api/tenant/service_operate \
 - **闲置休眠**：超时未使用的服务自动停止
 - **全链路审计**：所有操作记录可追溯
 
+## Web 管控台
+
+平台提供完整的 Web 界面，对标公有云控制台体验。
+
+### 技术栈
+- React 19 + Vite + Tailwind CSS
+- React Router（Hash 模式，兼容 FastAPI 静态托管）
+
+### 页面概览
+
+| 页面 | 路径 | 说明 |
+|------|------|------|
+| 登录 | `/#/login` | 租户 Token / 管理端 Token 登录 |
+| 概览仪表盘 | `/#/dashboard` | 资源概况、服务状态、快速操作 |
+| 模型上传 | `/#/upload` | 分片上传、进度展示、断点续传 |
+| 模型部署 | `/#/deploy` | 选择模型、配置参数、一键部署 |
+| 服务管理 | `/#/services` | 服务列表、启停/重启/删除、日志查看 |
+| 推理测试 | `/#/inference` | 在线对话测试（OpenAI 兼容） |
+| 资源管理 | `/#/resources` | 存储用量、GPU 配置、配额信息 |
+| 管理端 | `/#/admin` | 创建租户、GPU 概览、租户状态管理 |
+
+### 前端开发
+
+```bash
+cd web
+npm install
+npm run dev    # 开发模式，端口 5173，自动代理 API 到 8000
+npm run build  # 构建到 web/dist/，由 FastAPI 自动托管
+```
+
+### 部署流程
+
+1. 在开发机或服务器上构建前端：`cd web && npm install && npm run build`
+2. 启动后端：`python -m app.main`
+3. 访问 `http://<服务器IP>:8000/` 即可看到 Web 界面（自动加载 `web/dist`）
+4. 开发时可用 `npm run dev` 单独启动前端，API 请求会自动代理到后端
+
 ## 生产部署建议
 
 1. **使用 PostgreSQL 替代 SQLite**：修改 `.env` 中的 `DATABASE_URL`
