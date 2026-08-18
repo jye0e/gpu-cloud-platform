@@ -118,6 +118,15 @@ class CreateTenantResponse(BaseModel):
     status: str
 
 
+class UpdateTenantQuotaRequest(BaseModel):
+    """更新租户资源配额"""
+    gpu_memory_util: Optional[float] = Field(None, ge=0.1, le=0.9)
+    max_model_len: Optional[int] = Field(None, gt=0)
+    storage_quota_gb: Optional[int] = Field(None, gt=0)
+    qps_limit: Optional[int] = Field(None, gt=0)
+    gpu_device_ids: Optional[str] = None
+
+
 class TenantInfoResponse(BaseModel):
     tenant_id: str
     name: str

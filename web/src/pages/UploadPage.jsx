@@ -177,18 +177,18 @@ export default function UploadPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-slate-800 mb-1">模型上传</h2>
-        <p className="text-sm text-slate-500">支持分片上传、断点续传，适用于大模型文件传输</p>
+        <h2 className="text-lg font-semibold text-slate-100 mb-1">模型上传</h2>
+        <p className="text-sm text-slate-400">支持分片上传、断点续传，适用于大模型文件传输</p>
       </div>
 
       {completed ? (
         /* 上传完成 */
         <Card className="p-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
-            <CheckCircle className="w-8 h-8 text-emerald-600" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-900/30 rounded-full mb-4">
+            <CheckCircle className="w-8 h-8 text-emerald-400" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-800 mb-1">上传完成</h3>
-          <p className="text-sm text-slate-500 mb-4">{file?.name} 已成功上传</p>
+          <h3 className="text-lg font-semibold text-slate-100 mb-1">上传完成</h3>
+          <p className="text-sm text-slate-400 mb-4">{file?.name} 已成功上传</p>
           <div className="flex justify-center gap-3">
             <Button onClick={handleReset} variant="outline">
               继续上传
@@ -207,13 +207,13 @@ export default function UploadPage() {
                 onDrop={handleDrop}
                 onDragOver={(e) => e.preventDefault()}
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-slate-300 rounded-xl p-12 text-center cursor-pointer hover:border-brand-400 hover:bg-brand-50/30 transition-all"
+                className="border-2 border-dashed border-slate-600 rounded-xl p-12 text-center cursor-pointer hover:border-slate-400 hover:bg-slate-700/30 transition-all"
               >
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-2xl mb-4">
-                  <CloudUpload className="w-8 h-8 text-slate-400" />
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-700 rounded-2xl mb-4">
+                  <CloudUpload className="w-8 h-8 text-slate-500" />
                 </div>
-                <p className="text-base font-medium text-slate-700">点击或拖拽文件到此处</p>
-                <p className="text-sm text-slate-400 mt-1">支持 .safetensors / .gguf / .bin / .pt / .pth 格式</p>
+                <p className="text-base font-medium text-slate-200">点击或拖拽文件到此处</p>
+                <p className="text-sm text-slate-500 mt-1">支持 .safetensors / .gguf / .bin / .pt / .pth 格式</p>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -229,16 +229,16 @@ export default function UploadPage() {
               {/* 文件信息 */}
               <div className="flex items-start justify-between mb-5">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 bg-brand-50 rounded-lg flex items-center justify-center shrink-0">
-                    <FileText className="w-5 h-5 text-brand-600" />
+                  <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center shrink-0">
+                    <FileText className="w-5 h-5 text-slate-100" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-700 truncate">{file.name}</p>
-                    <p className="text-xs text-slate-400">{formatSize(file.size)}</p>
+                    <p className="text-sm font-medium text-slate-200 truncate">{file.name}</p>
+                    <p className="text-xs text-slate-500">{formatSize(file.size)}</p>
                   </div>
                 </div>
                 {!uploading && !completed && (
-                  <button onClick={handleReset} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400">
+                  <button onClick={handleReset} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-500">
                     <XCircle className="w-4 h-4" />
                   </button>
                 )}
@@ -248,11 +248,11 @@ export default function UploadPage() {
               {progress.total > 0 && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-slate-600">
+                    <span className="text-slate-300">
                       {paused ? '已暂停' : uploading ? '上传中...' : '准备上传'}
-                      {error && <span className="text-red-500"> · {error}</span>}
+                      {error && <span className="text-red-400"> · {error}</span>}
                     </span>
-                    <span className="text-slate-400">
+                    <span className="text-slate-500">
                       {progress.current} / {progress.total} 分片
                     </span>
                   </div>
@@ -260,7 +260,7 @@ export default function UploadPage() {
                     value={progress.percent}
                     color={error ? 'danger' : completed ? 'success' : 'brand'}
                   />
-                  <p className="text-xs text-slate-400 mt-1.5">
+                  <p className="text-xs text-slate-500 mt-1.5">
                     {progress.percent.toFixed(1)}%
                   </p>
                 </div>
@@ -296,9 +296,9 @@ export default function UploadPage() {
           )}
 
           {/* 说明 */}
-          <Card className="p-5 bg-slate-50 border-slate-200">
-            <h4 className="text-sm font-medium text-slate-700 mb-2">上传说明</h4>
-            <ul className="space-y-1.5 text-xs text-slate-500">
+          <Card className="p-5 bg-slate-700/50 border-slate-700">
+            <h4 className="text-sm font-medium text-slate-200 mb-2">上传说明</h4>
+            <ul className="space-y-1.5 text-xs text-slate-400">
               <li>• 默认分片大小 10MB，支持断点续传，网络中断后可继续上传</li>
               <li>• 仅支持 safetensors、gguf、bin、pt、pth 格式的模型权重文件</li>
               <li>• 上传完成后系统自动校验文件完整性（SHA256）</li>

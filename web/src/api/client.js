@@ -59,6 +59,9 @@ export const adminApi = {
 
   getGpuOverview: () =>
     request('/admin/gpu/overview'),
+
+  updateTenantQuota: (tenantId, body) =>
+    request(`/admin/tenants/${tenantId}/quota`, { method: 'PATCH', body: JSON.stringify(body) }),
 }
 
 // ==================== 租户端 - 模型上传 ====================

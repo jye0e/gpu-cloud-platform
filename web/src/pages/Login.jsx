@@ -56,7 +56,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-brand-900 to-slate-900 animated-gradient p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 animated-gradient p-4">
       {/* 背景装饰 */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl" />
@@ -66,7 +66,7 @@ export default function Login() {
       <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl mb-4 border border-white/20">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/5 backdrop-blur-md rounded-2xl mb-4 border border-slate-600/50">
             <Cloud className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">GPU 算力托管平台</h1>
@@ -74,19 +74,19 @@ export default function Login() {
         </div>
 
         {/* 登录卡片 */}
-        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
+        <div className="bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-slate-600/50">
           {/* 模式切换 */}
-          <div className="flex gap-2 p-1 bg-slate-100 rounded-xl mb-6">
+          <div className="flex gap-2 p-1 bg-slate-700 rounded-xl mb-6">
             <button
               onClick={() => setMode('tenant')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${mode === 'tenant' ? 'bg-white shadow-sm text-brand-600' : 'text-slate-500'}`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${mode === 'tenant' ? 'bg-slate-600 shadow-sm text-slate-100' : 'text-slate-500'}`}
             >
               <KeyRound className="w-4 h-4" />
               租户登录
             </button>
             <button
               onClick={() => setMode('admin')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${mode === 'admin' ? 'bg-white shadow-sm text-brand-600' : 'text-slate-500'}`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${mode === 'admin' ? 'bg-slate-600 shadow-sm text-slate-100' : 'text-slate-500'}`}
             >
               <Shield className="w-4 h-4" />
               管理端
@@ -96,7 +96,7 @@ export default function Login() {
           {/* 输入区 */}
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">
                 {mode === 'tenant' ? 'Access Token' : 'Admin Token'}
               </label>
               <div className="relative">
@@ -108,9 +108,9 @@ export default function Login() {
                   onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
                   className="pr-10"
                 />
-                <Cpu className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                <Cpu className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               </div>
-              <p className="mt-2 text-xs text-slate-400">
+              <p className="mt-2 text-xs text-slate-500">
                 {mode === 'tenant'
                   ? 'Token 由管理员创建租户时分配，用于访问所有租户接口'
                   : '管理端 Token 用于创建租户、管理资源等操作'}

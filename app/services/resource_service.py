@@ -31,6 +31,7 @@ async def get_tenant_resource_usage(tenant: Tenant) -> dict:
     # 查询运行中的服务数
     return {
         "tenant_id": tenant.tenant_id,
+        "tenant_name": tenant.name,
         "storage": {
             "used_bytes": storage_bytes,
             "used_gb": round(storage_bytes / (1024**3), 2),

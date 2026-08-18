@@ -80,8 +80,8 @@ export default function ServicesPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-slate-800 mb-1">服务管理</h2>
-          <p className="text-sm text-slate-500">管理已部署的推理服务</p>
+          <h2 className="text-lg font-semibold text-slate-100 mb-1">服务管理</h2>
+          <p className="text-sm text-slate-400">管理已部署的推理服务</p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchServices}>
           <RefreshCw className="w-3.5 h-3.5" /> 刷新
@@ -104,22 +104,22 @@ export default function ServicesPage() {
                 {/* 左侧：服务信息 */}
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                    s.status === 'running' ? 'bg-emerald-50' :
-                    s.status === 'error' ? 'bg-red-50' :
-                    s.status === 'deploying' ? 'bg-blue-50' : 'bg-slate-100'
+                    s.status === 'running' ? 'bg-emerald-900/30' :
+                    s.status === 'error' ? 'bg-red-900/30' :
+                    s.status === 'deploying' ? 'bg-blue-900/30' : 'bg-slate-700'
                   }`}>
                     <Server className={`w-5 h-5 ${
-                      s.status === 'running' ? 'text-emerald-600' :
-                      s.status === 'error' ? 'text-red-500' :
-                      s.status === 'deploying' ? 'text-blue-500' : 'text-slate-400'
+                      s.status === 'running' ? 'text-emerald-400' :
+                      s.status === 'error' ? 'text-red-400' :
+                      s.status === 'deploying' ? 'text-blue-400' : 'text-slate-500'
                     }`} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-slate-800 truncate">{s.service_name}</h3>
+                      <h3 className="font-semibold text-slate-100 truncate">{s.service_name}</h3>
                       <StatusBadge status={s.status} />
                     </div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
                       <span className="flex items-center gap-1">
                         <FileText className="w-3 h-3" /> {s.model_name}
                       </span>
@@ -136,13 +136,13 @@ export default function ServicesPage() {
                       </span>
                     </div>
                     {s.error_message && (
-                      <div className="mt-2 flex items-start gap-1.5 text-xs text-red-500 bg-red-50 px-2.5 py-1.5 rounded-lg">
+                      <div className="mt-2 flex items-start gap-1.5 text-xs text-red-400 bg-red-900/30 px-2.5 py-1.5 rounded-lg">
                         <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                         <span>{s.error_message}</span>
                       </div>
                     )}
                     {s.inference_endpoint && s.status === 'running' && (
-                      <div className="mt-2 text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg font-mono">
+                      <div className="mt-2 text-xs text-emerald-400 bg-emerald-900/30 px-2.5 py-1.5 rounded-lg font-mono">
                         POST {s.inference_endpoint}/chat/completions
                       </div>
                     )}
@@ -197,7 +197,7 @@ export default function ServicesPage() {
                       }
                     }}
                     disabled={operating === s.service_id}
-                    className="text-red-500 hover:bg-red-50"
+                    className="text-red-400 hover:bg-red-900/30"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
@@ -217,10 +217,10 @@ export default function ServicesPage() {
       >
         {logsLoading ? (
           <div className="flex items-center justify-center py-8">
-            <RefreshCw className="w-6 h-6 text-brand-500 animate-spin" />
+            <RefreshCw className="w-6 h-6 text-slate-400 animate-spin" />
           </div>
         ) : (
-          <pre className="bg-slate-900 text-slate-300 p-4 rounded-lg text-xs font-mono overflow-auto max-h-96 whitespace-pre-wrap">
+          <pre className="bg-slate-950 text-slate-400 p-4 rounded-lg text-xs font-mono overflow-auto max-h-96 whitespace-pre-wrap">
             {logs || '无日志'}
           </pre>
         )}

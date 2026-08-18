@@ -280,3 +280,12 @@ npm run build  # 构建到 web/dist/，由 FastAPI 自动托管
 4. **配置 systemd 服务**：实现开机自启和崩溃重启
 5. **修改管理端 Token**：`ADMIN_TOKEN` 必须更换为强随机值
 6. **定期备份**：数据库和模型存储定期备份
+
+两种登录方式
+方式一：租户登录（推荐，可以看到完整管控台）
+我已创建了一个测试租户，在登录页选择「租户登录」，粘贴以下 Token：
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJ0bnRfZDQyMWZiNDJkNWNiNDVmZCIsImFwaV9rZXkiOiJza18xNjgzNjAxYzhhYzUwNWM1NmM3NTQyZGYzNDQzNjgzZCIsImlhdCI6MTc4Njk1Njc2MywiZXhwIjoxNzg3MDQzMTYzfQ.jJbBS7eoR4XOKWPB7JZdBri7bPtoL-z0Lff-Ly3HOzY
+
+方式二：管理端登录
+在登录页切换到「管理端」，输入管理端 Token：
+admin-secret-token-change-in-production

@@ -28,6 +28,7 @@ from app.api.schemas import (
     CreateTenantRequest,
     CreateTenantResponse,
     TenantInfoResponse,
+    UpdateTenantQuotaRequest,
 )
 from app.services.resource_service import get_gpu_resource_overview
 
@@ -179,6 +180,42 @@ async def update_tenant_status(
     logger.info(f"租户状态更新 | tenant_id={tenant_id} status={new_status}")
 
     return {"message": f"租户状态已更新为 {new_status}"}
+
+
+@router.patch(
+    "/tenants/{tenant_id}/quota",
+    summary="更新租户资源配额",
+    description="更新租户的GPU显存利用率、存储配额、QPS限制等资源配置",
+)
+async def update_tenant_quota(
+    tenant_id: str,
+    req: UpdateTenantQuotaRequest,
+    _auth: bool = Depends(verify_admin_token),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Tenant).where(Tenant.tenant_id == tenant_id)
+    )
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="租户不存在")
+
+    # 只更新传入的字段
+    if req.gpu_memory_util is not None:
+        tenant.gpu_memory_util = req.gpu_memory_util
+    if req.max_model_len is not None:
+        tenant.max_model_len = req.max_model_len
+    if req.storage_quota_gb is not None:
+        tenant.storage_quota_gb = req.storage_quota_gb
+    if req.qps_limit is not None:
+        tenant.qps_limit = req.qps_limit
+    if req.gpu_device_ids is not None:
+        tenant.gpu_device_ids = req.gpu_device_ids if req.gpu_device_ids else None
+
+    await db.flush()
+    logger.info(f"租户资源配额更新 | tenant_id={tenant_id}")
+
+    return {"message": "租户资源配额已更新"}
 
 
 @router.get(

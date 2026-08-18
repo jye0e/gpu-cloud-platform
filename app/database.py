@@ -3,6 +3,8 @@
 异步 SQLAlchemy 引擎 + Session 工厂
 """
 
+from pathlib import Path
+
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -11,6 +13,19 @@ from sqlalchemy.ext.asyncio import (
 
 from app.config import settings
 from app.models import Base
+
+
+def _ensure_db_dir():
+    """确保 SQLite 数据库文件所在目录存在"""
+    if "sqlite" in settings.DATABASE_URL:
+        # 从 URL 提取路径: sqlite+aiosqlite:///./data/gpu_cloud.db
+        db_path = settings.DATABASE_URL.split("///")[-1]
+        db_dir = Path(db_path).parent
+        db_dir.mkdir(parents=True, exist_ok=True)
+
+
+# 确保目录存在
+_ensure_db_dir()
 
 # 创建异步引擎
 engine = create_async_engine(

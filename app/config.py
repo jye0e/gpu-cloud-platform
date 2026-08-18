@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # --- JWT 配置 ---
     JWT_SECRET_KEY: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_HOURS: int = 24
+    JWT_EXPIRE_HOURS: int = 168  # 7天
 
     # --- 数据库 ---
     DATABASE_URL: str = "sqlite+aiosqlite:///./data/gpu_cloud.db"

@@ -76,8 +76,8 @@ export default function DeployPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-slate-800 mb-1">模型部署</h2>
-        <p className="text-sm text-slate-500">选择已上传的模型，配置参数后一键部署</p>
+        <h2 className="text-lg font-semibold text-slate-100 mb-1">模型部署</h2>
+        <p className="text-sm text-slate-400">选择已上传的模型，配置参数后一键部署</p>
       </div>
 
       {models.length === 0 ? (
@@ -87,7 +87,7 @@ export default function DeployPage() {
             title="暂无可部署的模型"
             description="请先上传模型权重文件"
             action={
-              <Link to="/upload" className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors">
+              <Link to="/upload" className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-slate-900 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors">
                 <FileText className="w-4 h-4" /> 去上传
               </Link>
             }
@@ -97,27 +97,27 @@ export default function DeployPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 左侧：模型列表 */}
           <div className="lg:col-span-1 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-700 mb-3">已上传模型</h3>
+            <h3 className="text-sm font-semibold text-slate-200 mb-3">已上传模型</h3>
             {models.map(m => (
               <Card
                 key={m.model_id}
                 hover
-                className={`p-4 cursor-pointer border-2 transition-all ${modelId === String(m.model_id) ? 'border-brand-500 ring-2 ring-brand-500/20' : 'border-transparent'}`}
+                className={`p-4 cursor-pointer border-2 transition-all ${modelId === String(m.model_id) ? 'border-slate-400 ring-2 ring-slate-400/20' : 'border-transparent'}`}
                 onClick={() => setModelId(String(m.model_id))}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${modelId === String(m.model_id) ? 'bg-brand-500' : 'bg-slate-100'}`}>
-                    <FileText className={`w-4.5 h-4.5 ${modelId === String(m.model_id) ? 'text-white' : 'text-slate-400'}`} style={{ width: 18, height: 18 }} />
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${modelId === String(m.model_id) ? 'bg-slate-400' : 'bg-slate-700'}`}>
+                    <FileText className={`w-4.5 h-4.5 ${modelId === String(m.model_id) ? 'text-slate-900' : 'text-slate-500'}`} style={{ width: 18, height: 18 }} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-slate-700 truncate">{m.model_name}</p>
+                    <p className="text-sm font-medium text-slate-200 truncate">{m.model_name}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs px-1.5 py-0.5 bg-slate-100 rounded text-slate-500">{m.model_format}</span>
-                      <span className="text-xs text-slate-400">{(m.file_size_bytes / (1024 ** 3)).toFixed(2)} GB</span>
+                      <span className="text-xs px-1.5 py-0.5 bg-slate-700 rounded text-slate-400">{m.model_format}</span>
+                      <span className="text-xs text-slate-500">{(m.file_size_bytes / (1024 ** 3)).toFixed(2)} GB</span>
                     </div>
                   </div>
                   {modelId === String(m.model_id) && (
-                    <CheckCircle className="w-4.5 h-4.5 text-brand-500" style={{ width: 18, height: 18 }} />
+                    <CheckCircle className="w-4.5 h-4.5 text-slate-400" style={{ width: 18, height: 18 }} />
                   )}
                 </div>
               </Card>
@@ -128,8 +128,8 @@ export default function DeployPage() {
           <div className="lg:col-span-2 space-y-5">
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-5">
-                <Settings className="w-5 h-5 text-brand-600" />
-                <h3 className="font-semibold text-slate-800">部署配置</h3>
+                <Settings className="w-5 h-5 text-brand-300" />
+                <h3 className="font-semibold text-slate-100">部署配置</h3>
               </div>
 
               <div className="space-y-4">
@@ -144,7 +144,7 @@ export default function DeployPage() {
                 {/* 参数网格 */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">GPU 显存利用率</label>
+                    <label className="block text-sm font-medium text-slate-300 mb-1.5">GPU 显存利用率</label>
                     <div className="flex items-center gap-2">
                       <input
                         type="range"
@@ -153,9 +153,9 @@ export default function DeployPage() {
                         step="0.05"
                         value={params.gpu_memory_utilization}
                         onChange={(e) => setParams({ ...params, gpu_memory_utilization: parseFloat(e.target.value) })}
-                        className="flex-1 accent-brand-600"
+                        className="flex-1 accent-slate-400"
                       />
-                      <span className="text-sm font-medium text-slate-600 w-12 text-right">
+                      <span className="text-sm font-medium text-slate-300 w-12 text-right">
                         {Math.round(params.gpu_memory_utilization * 100)}%
                       </span>
                     </div>
@@ -205,12 +205,12 @@ export default function DeployPage() {
               </div>
 
               {/* 部署按钮 */}
-              <div className="mt-6 pt-5 border-t border-slate-100">
+              <div className="mt-6 pt-5 border-t border-slate-700">
                 {deploying ? (
                   <div className="flex flex-col items-center py-4">
-                    <Loader2 className="w-8 h-8 text-brand-500 animate-spin mb-3" />
-                    <p className="text-sm text-slate-600">正在部署...</p>
-                    <p className="text-xs text-slate-400 mt-1">系统正在创建容器、分配 GPU、启动 vLLM（预计 1-2 分钟）</p>
+                    <Loader2 className="w-8 h-8 text-slate-400 animate-spin mb-3" />
+                    <p className="text-sm text-slate-300">正在部署...</p>
+                    <p className="text-xs text-slate-500 mt-1">系统正在创建容器、分配 GPU、启动 vLLM（预计 1-2 分钟）</p>
                   </div>
                 ) : (
                   <Button
@@ -227,27 +227,27 @@ export default function DeployPage() {
 
               {/* 部署结果 */}
               {result && (
-                <div className="mt-5 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <div className="mt-5 p-4 bg-emerald-900/30 border border-emerald-800 rounded-xl">
                   <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle className="w-5 h-5 text-emerald-600" />
-                    <span className="font-medium text-emerald-800">部署成功</span>
+                    <CheckCircle className="w-5 h-5 text-emerald-400" />
+                    <span className="font-medium text-emerald-400">部署成功</span>
                   </div>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-slate-500">服务 ID</span>
-                      <span className="text-slate-700 font-mono">{result.service_id}</span>
+                      <span className="text-slate-400">服务 ID</span>
+                      <span className="text-slate-200 font-mono">{result.service_id}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">GPU</span>
-                      <span className="text-slate-700">{result.gpu_device_id}</span>
+                      <span className="text-slate-400">GPU</span>
+                      <span className="text-slate-200">{result.gpu_device_id}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">推理端点</span>
-                      <span className="text-slate-700 font-mono text-xs">{result.inference_endpoint}</span>
+                      <span className="text-slate-400">推理端点</span>
+                      <span className="text-slate-200 font-mono text-xs">{result.inference_endpoint}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">API Key</span>
-                      <span className="text-slate-700 font-mono text-xs">{result.api_key?.slice(0, 12)}...</span>
+                      <span className="text-slate-400">API Key</span>
+                      <span className="text-slate-200 font-mono text-xs">{result.api_key?.slice(0, 12)}...</span>
                     </div>
                   </div>
                   <div className="flex gap-3 mt-4">
@@ -267,9 +267,9 @@ export default function DeployPage() {
             </Card>
 
             {/* 参数说明 */}
-            <Card className="p-5 bg-slate-50 border-slate-200">
-              <h4 className="text-sm font-medium text-slate-700 mb-2">参数说明</h4>
-              <ul className="space-y-1.5 text-xs text-slate-500">
+            <Card className="p-5 bg-slate-700/50 border-slate-700">
+              <h4 className="text-sm font-medium text-slate-200 mb-2">参数说明</h4>
+              <ul className="space-y-1.5 text-xs text-slate-400">
                 <li>• <b>GPU 显存利用率</b>：vLLM 预分配的显存比例，值越大推理吞吐越高但占用越多</li>
                 <li>• <b>最大上下文长度</b>：模型支持的最大输入+输出 token 数</li>
                 <li>• <b>Tensor 并行数</b>：多 GPU 并行推理，单 GPU 设为 1</li>

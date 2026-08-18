@@ -3,7 +3,7 @@
  * 路由配置
  */
 
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
 import Layout from './pages/Layout'
 import Dashboard from './pages/Dashboard'
@@ -14,10 +14,21 @@ import ResourcesPage from './pages/ResourcesPage'
 import InferencePage from './pages/InferencePage'
 import AdminPage from './pages/AdminPage'
 
+function RootRedirect() {
+  const token = localStorage.getItem('token')
+  const adminToken = localStorage.getItem('adminToken')
+  if (adminToken) return <Navigate to="/admin" replace />
+  if (token) return <Navigate to="/dashboard" replace />
+  return <Navigate to="/login" replace />
+}
+
 function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Routes>
+        {/* 默认跳转 */}
+        <Route path="/" element={<RootRedirect />} />
+
         {/* 登录 */}
         <Route path="/login" element={<Login />} />
 
@@ -25,8 +36,7 @@ function App() {
         <Route path="/admin" element={<AdminPage />} />
 
         {/* 租户管控台 */}
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route element={<Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/deploy" element={<DeployPage />} />
@@ -36,9 +46,9 @@ function App() {
         </Route>
 
         {/* 兜底 */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<RootRedirect />} />
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   )
 }
 
