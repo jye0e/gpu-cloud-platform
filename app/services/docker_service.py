@@ -2,7 +2,7 @@
 Docker 容器管理服务
 - 容器创建与调度
 - GPU 资源分配
-- vLLM 服务启动
+- 多引擎推理服务启动
 - 容器生命周期管理
 """
 
@@ -16,6 +16,12 @@ from docker.errors import DockerException, NotFound, APIError
 from app.config import settings
 from app.core.logging import logger
 from app.models import DeployedService, ServiceStatus, Tenant
+from app.services.engine_registry import (
+    EngineType,
+    get_engine_config,
+    build_engine_command,
+    get_health_check_url,
+)
 
 
 # Docker 客户端（延迟初始化，服务器上才有）
@@ -126,23 +132,30 @@ async def deploy_service(
     service: DeployedService,
     model_path: str,
     deploy_params: dict,
+    engine_type: str = "vllm",
+    custom_image: Optional[str] = None,
+    custom_entrypoint: Optional[list[str]] = None,
 ) -> DeployedService:
     """
     核心部署逻辑：
     1. 选择 GPU
     2. 创建 Docker 容器（挂载模型文件、分配 GPU）
-    3. 启动 vLLM 推理服务
+    3. 启动推理引擎服务
     4. 等待服务就绪
     """
     logger.info(
         f"开始部署服务 | tenant={tenant.tenant_id} service={service.service_name} "
-        f"model_path={model_path}"
+        f"engine={engine_type} model_path={model_path}"
     )
 
     try:
         # 更新状态为部署中
         service.status = ServiceStatus.DEPLOYING
         await db.flush()
+
+        # 获取引擎配置
+        engine_config = get_engine_config(engine_type, custom_image)
+        logger.info(f"引擎配置: {engine_config.label} ({engine_config.docker_image})")
 
         client = get_docker_client()
 
@@ -151,43 +164,26 @@ async def deploy_service(
         service.gpu_device_id = gpu_id
 
         # 2. 分配内部端口
-        vllm_port = find_free_port()
-        service.vllm_port = vllm_port
+        engine_port = find_free_port()
+        service.vllm_port = engine_port
 
         # 3. 构建容器名称
         container_name = f"{tenant.tenant_id}_svc_{service.id}"
         service.container_name = container_name
 
-        # 4. 构建 vLLM 启动命令
-        gpu_memory_util = deploy_params.get(
-            "gpu_memory_utilization", tenant.gpu_memory_util
+        # 4. 构建引擎启动命令
+        engine_cmd = build_engine_command(
+            engine_type=engine_type,
+            model_path=model_path,
+            deploy_params=deploy_params,
+            engine_config=engine_config,
+            custom_entrypoint=custom_entrypoint,
         )
-        max_model_len = deploy_params.get(
-            "max_model_len", tenant.max_model_len
-        )
-        tensor_parallel_size = deploy_params.get("tensor_parallel_size", 1)
-        dtype = deploy_params.get("dtype", "auto")
-
-        # vLLM 启动参数
-        vllm_cmd = [
-            "--model", model_path,
-            "--host", "0.0.0.0",
-            "--port", "8000",
-            "--gpu-memory-utilization", str(gpu_memory_util),
-            "--max-model-len", str(max_model_len),
-            "--tensor-parallel-size", str(tensor_parallel_size),
-            "--dtype", dtype,
-            "--trust-remote-code",
-        ]
-
-        # 如果是 GGUF 格式，添加额外参数
-        if model_path.endswith(".gguf"):
-            vllm_cmd.extend(["--quantization", "gguf"])
+        logger.info(f"引擎启动命令: {engine_cmd}")
 
         # 5. 创建 Docker 容器
-        container = client.containers.create(
-            image=settings.VLLM_IMAGE,
-            command=vllm_cmd,
+        container_kwargs = dict(
+            image=engine_config.docker_image,
             name=container_name,
             device_requests=[
                 docker.types.DeviceRequest(
@@ -195,19 +191,35 @@ async def deploy_service(
                     capabilities=[["gpu"]],
                 )
             ],
-            volumes={
-                model_path: {"bind": model_path, "mode": "ro"},
-            },
-            ports={"8000/tcp": vllm_port},
-            environment={
-                "HUGGING_FACE_HUB_OFFLINE": "1",
-            },
-            mem_limit=f"{deploy_params.get('memory_limit_gb', 16)}g",
-            cpu_limit=deploy_params.get("cpu_limit", 4.0),
+            ports={"8000/tcp": engine_port},
             detach=True,
             auto_remove=False,
             network_mode="bridge",
         )
+
+        # 只有非空命令才传
+        if engine_cmd:
+            container_kwargs["command"] = engine_cmd
+
+        # 挂载模型文件（非 Ollama 等管理型引擎）
+        if engine_type != EngineType.OLLAMA.value:
+            if "volumes" not in container_kwargs:
+                container_kwargs["volumes"] = {}
+            container_kwargs["volumes"][model_path] = {"bind": model_path, "mode": "ro"}
+
+        # 资源限制
+        mem_limit = deploy_params.get("memory_limit_gb", 16)
+        if mem_limit:
+            container_kwargs["mem_limit"] = f"{mem_limit}g"
+        cpu_limit = deploy_params.get("cpu_limit", 4.0)
+        if cpu_limit:
+            container_kwargs["cpu_limit"] = cpu_limit
+
+        # 额外环境变量
+        if engine_config.extra_env:
+            container_kwargs["environment"] = engine_config.extra_env
+
+        container = client.containers.create(**container_kwargs)
 
         service.container_id = container.id
         await db.flush()
@@ -216,37 +228,37 @@ async def deploy_service(
         container.start()
         logger.info(
             f"容器已启动 | container={container_name} id={container.id[:12]} "
-            f"gpu={gpu_id} port={vllm_port}"
+            f"gpu={gpu_id} port={engine_port} engine={engine_type}"
         )
 
-        # 7. 等待 vLLM 服务就绪（最多等待 120 秒）
+        # 7. 等待服务就绪（最多等待 120 秒）
         import asyncio
         import httpx
 
-        vllm_url = f"http://127.0.0.1:{vllm_port}/health"
+        health_url = get_health_check_url(engine_type, engine_config, engine_port)
         ready = False
 
         for attempt in range(24):  # 24 * 5s = 120s
             await asyncio.sleep(5)
             try:
-                resp = await httpx.AsyncClient().get(vllm_url, timeout=5)
+                resp = await httpx.AsyncClient().get(health_url, timeout=5)
                 if resp.status_code == 200:
                     ready = True
                     logger.info(
-                        f"vLLM 服务就绪 | service={service.service_name} "
-                        f"尝试次数={attempt + 1}"
+                        f"引擎服务就绪 | service={service.service_name} "
+                        f"engine={engine_type} 尝试次数={attempt + 1}"
                     )
                     break
             except Exception:
                 logger.debug(
-                    f"等待 vLLM 就绪... 尝试 {attempt + 1}/24"
+                    f"等待 {engine_type} 就绪... 尝试 {attempt + 1}/24"
                 )
 
         if not ready:
             # 获取容器日志用于排错
             try:
                 logs = container.logs(tail=50).decode("utf-8", errors="replace")
-                logger.error(f"vLLM 启动超时，容器日志:\n{logs}")
+                logger.error(f"{engine_type} 启动超时，容器日志:\n{logs}")
             except Exception:
                 pass
 
@@ -258,19 +270,19 @@ async def deploy_service(
                 pass
 
             service.status = ServiceStatus.ERROR
-            service.error_message = "vLLM 服务启动超时（120秒内未就绪）"
+            service.error_message = f"{engine_type} 服务启动超时（120秒内未就绪）"
             await db.flush()
-            raise RuntimeError("vLLM 服务启动超时")
+            raise RuntimeError(f"{engine_type} 服务启动超时")
 
         # 8. 部署成功
         service.status = ServiceStatus.RUNNING
         service.error_message = None
-        service.service_port = vllm_port
+        service.service_port = engine_port
         await db.flush()
 
         logger.info(
             f"部署成功 | tenant={tenant.tenant_id} service={service.service_name} "
-            f"port={vllm_port} gpu={gpu_id}"
+            f"engine={engine_type} port={engine_port} gpu={gpu_id}"
         )
 
         return service

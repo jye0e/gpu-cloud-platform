@@ -34,7 +34,15 @@ class Settings(BaseSettings):
 
     # --- Docker 配置 ---
     DOCKER_SOCKET: str = "unix:///var/run/docker.sock"
+
+    # --- 推理引擎配置 ---
+    DEFAULT_ENGINE: str = "vllm"
     VLLM_IMAGE: str = "vllm/vllm-openai:latest"
+    TENSORRT_LLM_IMAGE: str = "nvcr.io/nvidia/tensorrt-llm:latest"
+    LM_DEPLOY_IMAGE: str = "openmmlab/lmdeploy:latest"
+    SGLANG_IMAGE: str = "lmsysorg/sglang:latest"
+    TGI_IMAGE: str = "ghcr.io/huggingface/text-generation-inference:latest"
+    OLLAMA_IMAGE: str = "ollama/ollama:latest"
 
     # --- GPU 配置 ---
     GPU_MEMORY_RESERVE_MB: int = 2048

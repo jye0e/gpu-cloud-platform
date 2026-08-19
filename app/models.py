@@ -126,6 +126,7 @@ class DeployedService(Base):
     tenant_id: Mapped[int] = mapped_column(ForeignKey("tenants.id"), index=True)
     model_id: Mapped[int] = mapped_column(ForeignKey("tenant_models.id"), index=True)
     service_name: Mapped[str] = mapped_column(String(128), comment="服务名称")
+    engine_type: Mapped[str] = mapped_column(String(32), default="vllm", comment="推理引擎类型")
     container_id: Mapped[str] = mapped_column(String(128), nullable=True, comment="Docker容器ID")
     container_name: Mapped[str] = mapped_column(String(128), nullable=True, comment="容器名称")
 

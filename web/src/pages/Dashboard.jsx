@@ -85,7 +85,7 @@ export default function Dashboard() {
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-20 -mt-20" />
         <div className="absolute bottom-0 right-10 w-32 h-32 bg-white/5 rounded-full -mb-10" />
         <div className="relative">
-          <h2 className="text-xl font-bold mb-1">欢迎使用 GPU 算力托管平台</h2>
+          <h2 className="text-xl font-bold mb-1">欢迎使用元熙智能云</h2>
           <p className="text-white/70 text-sm mb-4">自主上传模型、一键部署、标准 OpenAI 接口调用</p>
           <div className="flex gap-3">
             <Link to="/upload" className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 backdrop-blur rounded-lg text-sm font-medium transition-all">

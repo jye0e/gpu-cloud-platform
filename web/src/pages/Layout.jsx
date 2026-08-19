@@ -55,8 +55,8 @@ export default function Layout() {
               <Cloud className="w-5 h-5 text-slate-900" />
             </div>
             <div>
-              <p className="text-white font-semibold text-sm">GPU 托管平台</p>
-              <p className="text-slate-500 text-xs">云厂商模式</p>
+              <p className="text-white font-semibold text-sm">元熙智能云</p>
+              <p className="text-slate-500 text-xs">GPU 托管平台</p>
             </div>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-500 hover:text-white">

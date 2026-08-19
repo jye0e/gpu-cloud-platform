@@ -262,6 +262,7 @@ export default function AdminPage() {
               <thead>
                 <tr className="border-b border-slate-700">
                   <th className="text-left py-3 px-2 text-xs font-medium text-slate-400">租户</th>
+                  <th className="text-left py-3 px-2 text-xs font-medium text-slate-400">API Key</th>
                   <th className="text-left py-3 px-2 text-xs font-medium text-slate-400">状态</th>
                   <th className="text-left py-3 px-2 text-xs font-medium text-slate-400">GPU 显存</th>
                   <th className="text-left py-3 px-2 text-xs font-medium text-slate-400">存储配额</th>
@@ -277,6 +278,22 @@ export default function AdminPage() {
                         <div>
                           <p className="text-sm font-medium text-slate-200">{t.name}</p>
                           <p className="text-xs text-slate-500 font-mono">{t.tenant_id}</p>
+                        </div>
+                      </td>
+                      <td className="py-3 px-2">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-mono text-slate-300 max-w-[120px] truncate">
+                            {t.api_key ? t.api_key : '-'}
+                          </p>
+                          {t.api_key && (
+                            <button
+                              onClick={() => handleCopy(t.api_key, 'API Key')}
+                              className="p-1 hover:bg-slate-700 rounded transition-colors"
+                              title="复制 API Key"
+                            >
+                              <Copy className="w-3 h-3 text-slate-500" />
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="py-3 px-2"><StatusBadge status={t.status} /></td>

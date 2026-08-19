@@ -51,6 +51,17 @@ class DeployRequest(BaseModel):
     """部署模型请求"""
     model_id: int = Field(..., description="已上传的模型ID")
     service_name: str = Field(..., description="服务名称", max_length=128)
+    engine_type: str = Field(
+        default="vllm",
+        description="推理引擎类型",
+        examples=["vllm", "tensorrt_llm", "lmdeploy", "sglang", "tgi", "ollama", "custom"],
+    )
+    custom_image: Optional[str] = Field(
+        default=None, description="自定义引擎 Docker 镜像（engine_type=custom 时必填）",
+    )
+    custom_entrypoint: Optional[list[str]] = Field(
+        default=None, description="自定义引擎启动命令",
+    )
     deploy_params: dict = Field(
         default={},
         description="部署参数",
@@ -69,6 +80,7 @@ class DeployResponse(BaseModel):
     service_id: int
     service_name: str
     model_name: str
+    engine_type: str = "vllm"
     status: str
     gpu_device_id: Optional[str] = None
     service_port: Optional[int] = None
@@ -82,6 +94,7 @@ class ServiceInfoResponse(BaseModel):
     service_id: int
     service_name: str
     model_name: str
+    engine_type: str = "vllm"
     status: str
     gpu_device_id: Optional[str] = None
     service_port: Optional[int] = None
@@ -130,6 +143,7 @@ class UpdateTenantQuotaRequest(BaseModel):
 class TenantInfoResponse(BaseModel):
     tenant_id: str
     name: str
+    api_key: Optional[str] = None
     status: str
     gpu_memory_util: float
     max_model_len: int

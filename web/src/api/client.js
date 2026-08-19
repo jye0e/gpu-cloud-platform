@@ -96,6 +96,9 @@ export const deployApi = {
   listModels: () =>
     request('/api/tenant/models'),
 
+  listEngines: () =>
+    request('/api/tenant/engines'),
+
   deploy: (body) =>
     request('/api/tenant/deploy', { method: 'POST', body: JSON.stringify(body) }),
 

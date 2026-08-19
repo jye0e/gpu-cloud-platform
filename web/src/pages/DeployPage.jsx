@@ -18,12 +18,16 @@ import { deployApi } from '../api/client'
 
 export default function DeployPage() {
   const [models, setModels] = useState([])
+  const [engines, setEngines] = useState([])
   const [loading, setLoading] = useState(true)
   const [deploying, setDeploying] = useState(false)
 
   // 表单
   const [modelId, setModelId] = useState('')
   const [serviceName, setServiceName] = useState('')
+  const [engineType, setEngineType] = useState('vllm')
+  const [customImage, setCustomImage] = useState('')
+  const [customEntrypoint, setCustomEntrypoint] = useState('')
   const [params, setParams] = useState({
     gpu_memory_utilization: 0.4,
     max_model_len: 4096,
@@ -37,8 +41,12 @@ export default function DeployPage() {
   const [result, setResult] = useState(null)
 
   useEffect(() => {
-    deployApi.listModels().then(data => {
-      setModels(data.models || [])
+    Promise.all([
+      deployApi.listModels().then(data => ({ models: data.models || [] })),
+      deployApi.listEngines().then(data => ({ engines: data.engines || [] })),
+    ]).then(([modelsData, enginesData]) => {
+      setModels(modelsData.models)
+      setEngines(enginesData.engines)
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -57,11 +65,19 @@ export default function DeployPage() {
     setResult(null)
 
     try {
-      const resp = await deployApi.deploy({
+      const body = {
         model_id: parseInt(modelId),
         service_name: serviceName.trim(),
+        engine_type: engineType,
         deploy_params: params,
-      })
+      }
+      if (engineType === 'custom') {
+        body.custom_image = customImage.trim()
+        if (customEntrypoint.trim()) {
+          body.custom_entrypoint = customEntrypoint.trim().split(/\s+/)
+        }
+      }
+      const resp = await deployApi.deploy(body)
       setResult(resp)
       toast('部署成功！', 'success')
     } catch (err) {
@@ -81,18 +97,39 @@ export default function DeployPage() {
       </div>
 
       {models.length === 0 ? (
-        <Card className="p-8">
-          <EmptyState
-            icon={<Rocket className="w-12 h-12" />}
-            title="暂无可部署的模型"
-            description="请先上传模型权重文件"
-            action={
-              <Link to="/upload" className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-slate-900 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors">
-                <FileText className="w-4 h-4" /> 去上传
-              </Link>
-            }
-          />
-        </Card>
+        <div className="space-y-6">
+          <Card className="p-8">
+            <EmptyState
+              icon={<Rocket className="w-12 h-12" />}
+              title="暂无可部署的模型"
+              description="请先上传模型权重文件"
+              action={
+                <Link to="/upload" className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-slate-900 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors">
+                  <FileText className="w-4 h-4" /> 去上传
+                </Link>
+              }
+            />
+          </Card>
+
+          {/* 无模型时也展示引擎列表 */}
+          <Card className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Cpu className="w-5 h-5 text-brand-300" />
+              <h3 className="font-semibold text-slate-100">支持的推理引擎</h3>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {engines.map(e => (
+                <div
+                  key={e.type}
+                  className="p-3 rounded-lg border border-slate-600 bg-slate-800"
+                >
+                  <div className="text-sm font-medium text-slate-200">{e.label}</div>
+                  <div className="text-xs text-slate-500 mt-0.5 leading-tight">{e.description}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 左侧：模型列表 */}
@@ -140,6 +177,47 @@ export default function DeployPage() {
                   onChange={(e) => setServiceName(e.target.value)}
                   placeholder="例如: my-llm-service"
                 />
+
+                {/* 推理引擎选择 */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">推理引擎</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {engines.map(e => (
+                      <button
+                        key={e.type}
+                        type="button"
+                        onClick={() => setEngineType(e.type)}
+                        className={`p-3 rounded-lg border text-left transition-all ${
+                          engineType === e.type
+                            ? 'border-brand-500 bg-brand-500/10 ring-1 ring-brand-500/30'
+                            : 'border-slate-600 bg-slate-800 hover:border-slate-500'
+                        }`}
+                      >
+                        <div className="text-sm font-medium text-slate-200">{e.label}</div>
+                        <div className="text-xs text-slate-500 mt-0.5 leading-tight">{e.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 自定义引擎参数 */}
+                {engineType === 'custom' && (
+                  <div className="space-y-3 p-4 rounded-lg border border-slate-600 bg-slate-800/50">
+                    <p className="text-sm font-medium text-slate-300">自定义引擎配置</p>
+                    <Input
+                      label="Docker 镜像"
+                      value={customImage}
+                      onChange={(e) => setCustomImage(e.target.value)}
+                      placeholder="例如: my-registry/my-engine:latest"
+                    />
+                    <Input
+                      label="启动命令（可选）"
+                      value={customEntrypoint}
+                      onChange={(e) => setCustomEntrypoint(e.target.value)}
+                      placeholder="例如: python -m my_engine.server --port 8000"
+                    />
+                  </div>
+                )}
 
                 {/* 参数网格 */}
                 <div className="grid grid-cols-2 gap-4">

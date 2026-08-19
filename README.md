@@ -281,11 +281,22 @@ npm run build  # 构建到 web/dist/，由 FastAPI 自动托管
 5. **修改管理端 Token**：`ADMIN_TOKEN` 必须更换为强随机值
 6. **定期备份**：数据库和模型存储定期备份
 
-两种登录方式
-方式一：租户登录（推荐，可以看到完整管控台）
-我已创建了一个测试租户，在登录页选择「租户登录」，粘贴以下 Token：
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0ZW5hbnRfaWQiOiJ0bnRfZDQyMWZiNDJkNWNiNDVmZCIsImFwaV9rZXkiOiJza18xNjgzNjAxYzhhYzUwNWM1NmM3NTQyZGYzNDQzNjgzZCIsImlhdCI6MTc4Njk1Njc2MywiZXhwIjoxNzg3MDQzMTYzfQ.jJbBS7eoR4XOKWPB7JZdBri7bPtoL-z0Lff-Ly3HOzY
+## 登录方式
 
-方式二：管理端登录
+### 方式一：租户登录（推荐，可以看到完整管控台）
+
+在登录页选择「租户登录」，输入以下 API Key：
+```
+sk_1683601c8ac505c56c7542df3443683d
+```
+
+> API Key 由管理员创建租户时分配，**永久有效**，可直接用于所有租户接口的访问，无需额外换取 Token。
+
+### 方式二：管理端登录
+
 在登录页切换到「管理端」，输入管理端 Token：
+```
 admin-secret-token-change-in-production
+```
+
+> 管理端 Token 用于创建租户、管理资源等操作，同样**永久有效**。

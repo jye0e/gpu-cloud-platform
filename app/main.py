@@ -25,6 +25,7 @@ from app.api import (
     deploy_routes,
     inference_routes,
     resource_routes,
+    auth_routes,
 )
 
 
@@ -179,6 +180,7 @@ app.add_middleware(
 )
 
 # 注册路由
+app.include_router(auth_routes.router)
 app.include_router(admin_routes.router)
 app.include_router(upload_routes.router)
 app.include_router(deploy_routes.router)

@@ -109,6 +109,7 @@ async def list_tenants(
         TenantInfoResponse(
             tenant_id=t.tenant_id,
             name=t.name,
+            api_key=t.api_key,
             status=t.status.value if hasattr(t.status, 'value') else str(t.status),
             gpu_memory_util=t.gpu_memory_util,
             max_model_len=t.max_model_len,

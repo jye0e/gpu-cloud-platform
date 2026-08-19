@@ -30,6 +30,7 @@ from app.services.docker_service import (
     get_container_status,
     get_container_logs,
 )
+from app.services.engine_registry import list_engines
 from app.api.schemas import (
     DeployRequest,
     DeployResponse,
@@ -38,6 +39,15 @@ from app.api.schemas import (
 )
 
 router = APIRouter(prefix="/api/tenant", tags=["租户-部署与服务管理"])
+
+
+@router.get(
+    "/engines",
+    summary="获取可用的推理引擎列表",
+    description="返回系统支持的所有推理引擎及其配置信息",
+)
+async def get_engines():
+    return {"engines": list_engines(), "total": len(list_engines())}
 
 
 @router.get(
@@ -105,6 +115,7 @@ async def deploy_model(
         tenant_id=tenant.id,
         model_id=model.id,
         service_name=req.service_name,
+        engine_type=req.engine_type,
         deploy_params=req.deploy_params,
         status=ServiceStatus.PENDING,
     )
@@ -125,6 +136,9 @@ async def deploy_model(
             service=service,
             model_path=model.model_path,
             deploy_params=req.deploy_params,
+            engine_type=req.engine_type,
+            custom_image=req.custom_image,
+            custom_entrypoint=req.custom_entrypoint,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"部署失败: {str(e)}")
@@ -139,7 +153,7 @@ async def deploy_model(
     await log_audit(
         db, tenant.id, "deploy_complete",
         resource=service.service_name,
-        detail={"status": status_value, "port": service.service_port},
+        detail={"status": status_value, "port": service.service_port, "engine_type": req.engine_type},
         status_code=200 if service.status == ServiceStatus.RUNNING else 500,
     )
 
@@ -147,6 +161,7 @@ async def deploy_model(
         service_id=service.id,
         service_name=service.service_name,
         model_name=model.model_name,
+        engine_type=req.engine_type,
         status=status_value,
         gpu_device_id=service.gpu_device_id,
         service_port=service.service_port,
@@ -187,6 +202,7 @@ async def list_services(
             "service_id": service.id,
             "service_name": service.service_name,
             "model_name": model.model_name,
+            "engine_type": service.engine_type,
             "status": status_value,
             "gpu_device_id": service.gpu_device_id,
             "service_port": service.service_port,

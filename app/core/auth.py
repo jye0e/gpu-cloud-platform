@@ -75,7 +75,9 @@ async def get_current_tenant(
 ) -> Tenant:
     """
     核心依赖：从请求中解析租户身份
-    所有租户接口都依赖此项进行鉴权
+    支持两种认证方式：
+    1. API Key 直接认证（推荐）：Bearer sk_xxxx
+    2. JWT Token 认证（兼容）：Bearer eyJxxxx
     """
     if credentials is None:
         raise HTTPException(
@@ -84,7 +86,32 @@ async def get_current_tenant(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    payload = verify_access_token(credentials.credentials)
+    token = credentials.credentials
+
+    # 方式一：API Key 直接认证（以 sk_ 开头）
+    if token.startswith("sk_"):
+        result = await db.execute(
+            select(Tenant).where(Tenant.api_key == token)
+        )
+        tenant = result.scalar_one_or_none()
+
+        if tenant is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="API Key 无效",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        if tenant.status != TenantStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"租户账户状态异常: {tenant.status.value}，请联系管理员",
+            )
+
+        return tenant
+
+    # 方式二：JWT Token 认证（兼容旧方式）
+    payload = verify_access_token(token)
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
