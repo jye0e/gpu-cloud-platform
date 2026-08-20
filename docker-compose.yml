@@ -1,0 +1,49 @@
+version: "3.8"
+
+services:
+  gpu-cloud-platform:
+    build: .
+    container_name: gpu-cloud-platform
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # 持久化数据（SQLite + 上传的模型文件）
+      - ./data:/app/data
+      - ./logs:/app/logs
+      # 挂载 Docker 套接字（用于管理推理容器）
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - APP_DEBUG=false
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
+      - DATABASE_URL=sqlite+aiosqlite:///./data/gpu_cloud.db
+      - STORAGE_ROOT=/data/models
+      - LOG_DIR=./logs
+      - DOCKER_SOCKET=unix:///var/run/docker.sock
+      - VLLM_IMAGE=${VLLM_IMAGE:-vllm/vllm-openai:latest}
+      - TENSORRT_LLM_IMAGE=${TENSORRT_LLM_IMAGE:-nvcr.io/nvidia/tensorrt-llm:latest}
+      - LM_DEPLOY_IMAGE=${LM_DEPLOY_IMAGE:-openmmlab/lmdeploy:latest}
+      - SGLANG_IMAGE=${SGLANG_IMAGE:-lmsysorg/sglang:latest}
+      - TGI_IMAGE=${TGI_IMAGE:-ghcr.io/huggingface/text-generation-inference:latest}
+      - OLLAMA_IMAGE=${OLLAMA_IMAGE:-ollama/ollama:latest}
+      - GPU_MEMORY_RESERVE_MB=${GPU_MEMORY_RESERVE_MB:-2048}
+      - MAX_TENANTS_PER_GPU=${MAX_TENANTS_PER_GPU:-2}
+      - DEFAULT_GPU_MEMORY_UTIL=${DEFAULT_GPU_MEMORY_UTIL:-0.4}
+      - DEFAULT_MAX_MODEL_LEN=${DEFAULT_MAX_MODEL_LEN:-4096}
+      - DEFAULT_STORAGE_QUOTA_GB=${DEFAULT_STORAGE_QUOTA_GB:-50}
+      - DEFAULT_QPS_LIMIT=${DEFAULT_QPS_LIMIT:-10}
+      - GATEWAY_RATE_LIMIT=${GATEWAY_RATE_LIMIT:-100}
+      - IDLE_TIMEOUT_MINUTES=${IDLE_TIMEOUT_MINUTES:-30}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # 需要 GPU 权限（用于 nvidia-smi 检测和分配）
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # 非 swarm 模式下的 GPU 配置
+    runtime: ${DOCKER_RUNTIME:-nvidia}
