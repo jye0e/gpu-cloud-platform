@@ -7,8 +7,9 @@
 - **后端框架**：FastAPI + Uvicorn
 - **数据库**：SQLite（开发）/ PostgreSQL（生产可切换）
 - **容器引擎**：Docker + Docker SDK for Python
-- **推理引擎**：vLLM（OpenAI 兼容接口）
+- **推理引擎**：vLLM（默认） / TensorRT-LLM / LMDeploy / SGLang / TGI / Ollama / 自定义引擎
 - **GPU 管理**：nvidia-docker / NVIDIA Container Toolkit
+- **容器化部署**：Docker Compose（项目本身）
 
 ## 项目结构
 
@@ -23,6 +24,7 @@ gpu-cloud-platform/
 │   ├── api/
 │   │   ├── __init__.py
 │   │   ├── schemas.py        # Pydantic 请求/响应模型
+│   │   ├── auth_routes.py    # 租户登录接口
 │   │   ├── admin_routes.py   # 管理端路由（创建租户等）
 │   │   ├── upload_routes.py  # 模型上传路由
 │   │   ├── deploy_routes.py  # 部署与服务管理路由
@@ -37,71 +39,75 @@ gpu-cloud-platform/
 │       ├── upload_service.py     # 模型上传服务
 │       ├── docker_service.py     # Docker 容器管理
 │       ├── resource_service.py   # 资源管控
-│       └── inference_service.py  # 推理代理
+│       ├── inference_service.py  # 推理代理
+│       └── engine_registry.py    # 推理引擎注册表
+├── web/                      # 前端（React 19 + Vite + Tailwind）
+├── Dockerfile                # Docker 多阶段构建
+├── docker-compose.yml        # Docker Compose 一键部署
+├── .dockerignore
 ├── requirements.txt
 ├── .env.example
 ├── .gitignore
-├── start.sh                  # 启动脚本
 └── README.md
 ```
 
 ## 快速部署
 
-### 1. 服务器环境准备
+### 方式一：Docker 部署（推荐）
+
+项目已提供 Docker 多阶段构建，一键启动：
 
 ```bash
-# 确保以下组件已安装
-# - Python 3.10+
-# - Docker + NVIDIA Container Toolkit
-# - NVIDIA 驱动 + nvidia-smi 可用
-# - vLLM Docker 镜像
+# 1. 克隆代码
+git clone https://github.com/jye0e/gpu-cloud-platform.git
+cd gpu-cloud-platform
 
-# 拉取 vLLM 镜像
-docker pull vllm/vllm-openai:latest
+# 2. 构建并启动（需要 NVIDIA GPU + Docker + NVIDIA Container Toolkit）
+docker compose up -d --build
+
+# 3. 查看日志
+docker compose logs -f
+
+# 4. 访问
+#    Web 界面: http://<服务器IP>:8000/
+#    API 文档: http://<服务器IP>:8000/docs
 ```
 
-### 2. 克隆代码
+> **注意**：Docker 部署需要服务器已安装 NVIDIA 驱动及 NVIDIA Container Toolkit。
+> 请确保 `nvidia-smi` 可正常运行。
+
+### 方式二：直接部署
 
 ```bash
+# 1. 克隆代码
 git clone <your-github-repo-url>
 cd gpu-cloud-platform
-```
 
-### 3. 安装依赖
-
-```bash
+# 2. 安装依赖
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-```
 
-### 4. 配置环境
-
-```bash
+# 3. 配置环境
 cp .env.example .env
 # 编辑 .env 文件，修改以下关键配置：
 # - JWT_SECRET_KEY    生产环境必须修改
 # - STORAGE_ROOT      模型存储路径（确保磁盘空间充足）
 # - GPU_MEMORY_RESERVE_MB  为自有业务预留的显存
-```
 
-### 5. 启动服务
+# 4. 构建前端
+cd web
+npm install
+npm run build
+cd ..
 
-```bash
-# 方式一：直接启动
+# 5. 启动服务
 python -m app.main
 
-# 方式二：使用 uvicorn
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-# 方式三：使用启动脚本
-chmod +x start.sh
-./start.sh
+# 6. 访问
+#    Web 界面: http://<服务器IP>:8000/
+#    API 文档: http://<服务器IP>:8000/docs
 ```
-
-### 6. 访问 API 文档
-
-启动后访问 `http://<服务器IP>:8000/docs` 查看交互式 API 文档。
 
 ## 使用流程
 
@@ -148,19 +154,22 @@ curl -X POST "http://localhost:8000/api/tenant/upload_model/chunk?task_id=xxx&ch
 curl -X POST "http://localhost:8000/api/tenant/upload_model/complete?task_id=xxx" \
   -H "Authorization: Bearer $TOKEN"
 
-# 4. 部署模型
+# 4. 部署模型（支持选择推理引擎）
 curl -X POST http://localhost:8000/api/tenant/deploy \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "model_id": 1,
     "service_name": "my-llm-service",
+    "engine_type": "vllm",
     "deploy_params": {
       "gpu_memory_utilization": 0.4,
       "max_model_len": 4096,
       "dtype": "auto"
     }
   }'
+
+# 可用引擎类型: vllm, tensorrt_llm, lmdeploy, sglang, tgi, ollama, custom
 
 # 5. 调用推理（OpenAI 兼容接口）
 curl -X POST http://localhost:8000/api/tenant/inference/my-llm-service/v1/chat/completions \
@@ -241,20 +250,20 @@ curl -X POST http://localhost:8000/api/tenant/service_operate \
 
 ### 技术栈
 - React 19 + Vite + Tailwind CSS
-- React Router（Hash 模式，兼容 FastAPI 静态托管）
+- React Router（BrowserRouter 模式，URL 不带 #）
 
 ### 页面概览
 
 | 页面 | 路径 | 说明 |
 |------|------|------|
-| 登录 | `/#/login` | 租户 Token / 管理端 Token 登录 |
-| 概览仪表盘 | `/#/dashboard` | 资源概况、服务状态、快速操作 |
-| 模型上传 | `/#/upload` | 分片上传、进度展示、断点续传 |
-| 模型部署 | `/#/deploy` | 选择模型、配置参数、一键部署 |
-| 服务管理 | `/#/services` | 服务列表、启停/重启/删除、日志查看 |
-| 推理测试 | `/#/inference` | 在线对话测试（OpenAI 兼容） |
-| 资源管理 | `/#/resources` | 存储用量、GPU 配置、配额信息 |
-| 管理端 | `/#/admin` | 创建租户、GPU 概览、租户状态管理 |
+| 登录 | `/login` | 租户 API Key / 管理端 Token 登录 |
+| 概览仪表盘 | `/dashboard` | 资源概况、服务状态、快速操作 |
+| 模型上传 | `/upload` | 分片上传、进度展示、断点续传 |
+| 模型部署 | `/deploy` | 选择模型、选择引擎、配置参数、一键部署 |
+| 服务管理 | `/services` | 服务列表、启停/重启/删除、日志查看 |
+| 推理测试 | `/inference` | 在线对话测试（OpenAI 兼容） |
+| 资源管理 | `/resources` | 存储用量、GPU 配置、配额信息 |
+| 管理端 | `/admin` | 创建租户、GPU 概览、租户状态管理 |
 
 ### 前端开发
 
@@ -267,6 +276,12 @@ npm run build  # 构建到 web/dist/，由 FastAPI 自动托管
 
 ### 部署流程
 
+**方式一：Docker 部署（推荐）**
+```bash
+docker compose up -d --build
+```
+
+**方式二：手动部署**
 1. 在开发机或服务器上构建前端：`cd web && npm install && npm run build`
 2. 启动后端：`python -m app.main`
 3. 访问 `http://<服务器IP>:8000/` 即可看到 Web 界面（自动加载 `web/dist`）
