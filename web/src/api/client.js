@@ -125,7 +125,14 @@ export const resourceApi = {
 // ==================== 租户端 - 推理测试 ====================
 
 export const inferenceApi = {
-  chat: async (serviceName, messages, options = {}) => {
+  /**
+   * 非流式对话
+   * @param {string} serviceName - 服务名
+   * @param {Array} messages - 消息列表
+   * @param {Object} options - 生成参数 (max_tokens, temperature, top_p 等)
+   * @param {string} modelName - 实际模型名
+   */
+  chat: async (serviceName, messages, options = {}, modelName = '') => {
     const resp = await fetch(`${BASE_URL}/api/tenant/inference/${serviceName}/v1/chat/completions`, {
       method: 'POST',
       headers: {
@@ -133,11 +140,123 @@ export const inferenceApi = {
         'Authorization': `Bearer ${getToken()}`,
       },
       body: JSON.stringify({
-        model: 'default',
+        model: modelName || 'default',
         messages,
         ...options,
       }),
     })
+
+    if (!resp.ok) {
+      const errText = await resp.text()
+      let errMsg = errText
+      try {
+        const parsed = JSON.parse(errText)
+        errMsg = parsed.detail || parsed.message || errText
+      } catch {}
+      throw new Error(errMsg || `请求失败 (${resp.status})`)
+    }
+
     return resp.json()
+  },
+
+  /**
+   * 流式对话 (SSE)
+   * @param {string} serviceName - 服务名
+   * @param {Array} messages - 消息列表
+   * @param {Object} options - 生成参数
+   * @param {Function} onChunk - chunk 回调 (content, reasoningContent, done)
+   * @param {AbortSignal} signal - 中止信号
+   * @param {string} modelName - 实际模型名
+   */
+  chatStream: async (serviceName, messages, options = {}, onChunk, signal, modelName = '') => {
+    return new Promise((resolve, reject) => {
+      const url = `${BASE_URL}/api/tenant/inference/${serviceName}/v1/chat/completions`
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', url, true)
+      xhr.setRequestHeader('Content-Type', 'application/json')
+      xhr.setRequestHeader('Authorization', `Bearer ${getToken()}`)
+      xhr.setRequestHeader('Accept', 'text/event-stream')
+
+      const body = JSON.stringify({
+        model: modelName || 'default',
+        messages,
+        stream: true,
+        ...options,
+      })
+
+      let buffer = ''
+      let lastIndex = 0
+
+      xhr.onreadystatechange = () => {
+        if (xhr.readyState === 3 || xhr.readyState === 4) {
+          const newData = xhr.responseText.slice(lastIndex)
+          lastIndex = xhr.responseText.length
+          buffer += newData
+
+          // 解析 SSE 事件
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+
+          for (const line of lines) {
+            if (!line) continue
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6)
+              if (data === '[DONE]') {
+                onChunk({ done: true })
+                resolve()
+                return
+              }
+              try {
+                const parsed = JSON.parse(data)
+                const delta = parsed.choices?.[0]?.delta || {}
+                onChunk({
+                  content: delta.content || '',
+                  reasoningContent: delta.reasoning_content || '',
+                  finishReason: parsed.choices?.[0]?.finish_reason,
+                })
+              } catch {
+                // JSON 解析失败则跳过
+              }
+            }
+          }
+        }
+
+        if (xhr.readyState === 4) {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            onChunk({ done: true })
+            resolve()
+          } else if (xhr.status === 0 && signal?.aborted) {
+            onChunk({ done: true })
+            resolve()
+          } else {
+            reject(new Error(`请求失败 (${xhr.status})`))
+          }
+        }
+      }
+
+      xhr.onerror = () => {
+        if (signal?.aborted || xhr.status === 0) {
+          onChunk({ done: true })
+          resolve()
+        } else {
+          reject(new Error(`网络错误 (${xhr.status})`))
+        }
+      }
+
+      xhr.onabort = () => {
+        onChunk({ done: true })
+        resolve()
+      }
+
+      if (signal) {
+        if (signal.aborted) {
+          xhr.abort()
+          return
+        }
+        signal.addEventListener('abort', () => xhr.abort(), { once: true })
+      }
+
+      xhr.send(body)
+    })
   },
 }

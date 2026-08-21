@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
+from app.config import settings
+
 
 class EngineType(str, Enum):
     """支持的引擎类型"""
@@ -42,7 +44,7 @@ _BUILTIN_ENGINES: dict[EngineType, EngineConfig] = {
     EngineType.VLLM: EngineConfig(
         name="vllm",
         label="vLLM",
-        docker_image="vllm/vllm-openai:latest",
+        docker_image=settings.apply_mirror(settings.VLLM_IMAGE),
         description="高性能推理引擎，PagedAttention 动态批处理，吞吐量极高",
         health_check_path="/health",
         api_base_path="/v1",
@@ -52,7 +54,7 @@ _BUILTIN_ENGINES: dict[EngineType, EngineConfig] = {
     EngineType.TENSORRT_LLM: EngineConfig(
         name="tensorrt_llm",
         label="TensorRT-LLM",
-        docker_image="nvcr.io/nvidia/tensorrt-llm:latest",
+        docker_image=settings.apply_mirror(settings.TENSORRT_LLM_IMAGE),
         description="NVIDIA 官方推理引擎，极致性能，需模型编译优化",
         health_check_path="/v1/health",
         api_base_path="/v1",
@@ -63,7 +65,7 @@ _BUILTIN_ENGINES: dict[EngineType, EngineConfig] = {
     EngineType.LM_DEPLOY: EngineConfig(
         name="lmdeploy",
         label="LMDeploy",
-        docker_image="openmmlab/lmdeploy:latest",
+        docker_image=settings.apply_mirror(settings.LM_DEPLOY_IMAGE),
         description="国产高性能推理引擎，支持多模态模型，TurboMind 后端",
         health_check_path="/v1/models",
         api_base_path="/v1",
@@ -73,7 +75,7 @@ _BUILTIN_ENGINES: dict[EngineType, EngineConfig] = {
     EngineType.SGLANG: EngineConfig(
         name="sglang",
         label="SGLang",
-        docker_image="lmsysorg/sglang:latest",
+        docker_image=settings.apply_mirror(settings.SGLANG_IMAGE),
         description="清华出品，灵活调度，支持多模态，快速发展中",
         health_check_path="/health",
         api_base_path="/v1",
@@ -83,7 +85,7 @@ _BUILTIN_ENGINES: dict[EngineType, EngineConfig] = {
     EngineType.TGI: EngineConfig(
         name="tgi",
         label="TGI",
-        docker_image="ghcr.io/huggingface/text-generation-inference:latest",
+        docker_image=settings.apply_mirror(settings.TGI_IMAGE),
         description="HuggingFace 官方引擎，兼容性最好，支持模型最广",
         health_check_path="/health",
         api_base_path="/v1",
@@ -93,7 +95,7 @@ _BUILTIN_ENGINES: dict[EngineType, EngineConfig] = {
     EngineType.OLLAMA: EngineConfig(
         name="ollama",
         label="Ollama",
-        docker_image="ollama/ollama:latest",
+        docker_image=settings.apply_mirror(settings.OLLAMA_IMAGE),
         description="最简部署，适合桌面/边缘设备，一键运行",
         health_check_path="/api/tags",
         api_base_path="/v1",
@@ -117,10 +119,12 @@ def get_engine_config(engine_type: str, custom_image: Optional[str] = None) -> E
     if etype == EngineType.CUSTOM:
         if not custom_image:
             raise ValueError("自定义引擎必须提供 Docker 镜像")
+        # 自定义镜像也尝试应用镜像前缀（如果用户没有指定完整 registry）
+        mirrored_image = settings.apply_mirror(custom_image)
         return EngineConfig(
             name="custom",
             label=f"自定义 ({custom_image.split('/')[-1].split(':')[0]})",
-            docker_image=custom_image,
+            docker_image=mirrored_image,
             description="用户自定义推理引擎",
             health_check_path="/health",
             api_base_path="/v1",
@@ -178,6 +182,7 @@ def build_engine_command(
     if engine_type == EngineType.VLLM.value:
         cmd = [
             "--model", model_path,
+            "--served-model-name", model_path.split("/")[-1],
             "--host", "0.0.0.0",
             "--port", "8000",
             "--gpu-memory-utilization", str(gpu_memory_util),
@@ -185,6 +190,7 @@ def build_engine_command(
             "--tensor-parallel-size", str(tensor_parallel_size),
             "--dtype", dtype,
             "--trust-remote-code",
+            "--enforce-eager",
         ]
         if model_path.endswith(".gguf"):
             cmd.extend(["--quantization", "gguf"])
@@ -242,7 +248,8 @@ def build_engine_command(
 def get_health_check_url(engine_type: str, engine_config: EngineConfig, port: int) -> str:
     """获取健康检查 URL"""
     if engine_type == EngineType.VLLM.value:
-        return f"http://127.0.0.1:{port}/health"
+        # vLLM v0.26.0+ 没有 /health 端点，使用 /v1/models 代替
+        return f"http://127.0.0.1:{port}/v1/models"
     elif engine_type == EngineType.TENSORRT_LLM.value:
         return f"http://127.0.0.1:{port}/v1/health"
     elif engine_type == EngineType.LM_DEPLOY.value:

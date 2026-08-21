@@ -30,19 +30,28 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./data/gpu_cloud.db"
 
     # --- 存储配置 ---
-    STORAGE_ROOT: str = "/data/models"
+    STORAGE_ROOT: str = "./data/models"
 
     # --- Docker 配置 ---
     DOCKER_SOCKET: str = "unix:///var/run/docker.sock"
 
     # --- 推理引擎配置 ---
     DEFAULT_ENGINE: str = "vllm"
-    VLLM_IMAGE: str = "vllm/vllm-openai:latest"
+
+    # 镜像源前缀（用于国内加速，留空则使用原始地址）
+    # 示例: "m.daocloud.io/docker.io/" 将 Docker Hub 镜像走 DaoCloud 代理
+    IMAGE_MIRROR_PREFIX: str = "m.daocloud.io/docker.io/"
+
+    # 各引擎默认镜像（配置中可覆盖）
+    VLLM_IMAGE: str = "vllm/vllm-openai:v0.26.0"
     TENSORRT_LLM_IMAGE: str = "nvcr.io/nvidia/tensorrt-llm:latest"
     LM_DEPLOY_IMAGE: str = "openmmlab/lmdeploy:latest"
     SGLANG_IMAGE: str = "lmsysorg/sglang:latest"
     TGI_IMAGE: str = "ghcr.io/huggingface/text-generation-inference:latest"
     OLLAMA_IMAGE: str = "ollama/ollama:latest"
+
+    # 自定义引擎镜像（由用户部署时指定，不经过镜像替换）
+    CUSTOM_IMAGE: str = ""
 
     # --- GPU 配置 ---
     GPU_MEMORY_RESERVE_MB: int = 2048
@@ -86,6 +95,29 @@ class Settings(BaseSettings):
         path = Path(self.LOG_DIR)
         path.mkdir(parents=True, exist_ok=True)
         return path
+
+    def apply_mirror(self, image: str, skip_mirror: bool = False) -> str:
+        """
+        对镜像名应用国内镜像源前缀。
+        - Docker Hub 镜像 (不含 '/' 或以 'library/' 开头): 直接加前缀
+        - 已含 registry 前缀的镜像: 检查是否已在允许列表
+        - skip_mirror=True 或 IMAGE_MIRROR_PREFIX 为空: 原样返回
+        """
+        if skip_mirror or not self.IMAGE_MIRROR_PREFIX:
+            return image
+
+        # 如果镜像已经是完整路径（包含镜像前缀本身），直接返回
+        if image.startswith(self.IMAGE_MIRROR_PREFIX):
+            return image
+
+        # 如果镜像已经带有其他 registry（如 nvcr.io, ghcr.io, quay.io），不做替换
+        known_registries = ("nvcr.io", "ghcr.io", "quay.io", "gcr.io", "registry.cn-hangzhou.aliyuncs.com", "m.daocloud.io")
+        for reg in known_registries:
+            if image.startswith(reg):
+                return image
+
+        # Docker Hub 镜像: 添加镜像前缀
+        return self.IMAGE_MIRROR_PREFIX + image
 
 
 # 全局配置单例

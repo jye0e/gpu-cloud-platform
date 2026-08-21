@@ -3,8 +3,11 @@
 异步 SQLAlchemy 引擎 + Session 工厂
 """
 
+import secrets
+import uuid
 from pathlib import Path
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -12,7 +15,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.config import settings
-from app.models import Base
+from app.models import Base, Tenant, TenantStatus
 
 
 def _ensure_db_dir():
@@ -42,10 +45,37 @@ async_session_factory = async_sessionmaker(
 )
 
 
+async def _seed_default_tenant():
+    """初始化默认租户（如果数据库为空）"""
+    async with async_session_factory() as session:
+        result = await session.execute(select(Tenant).limit(1))
+        existing = result.scalar_one_or_none()
+
+        if existing is not None:
+            return  # 已有租户，不重复初始化
+
+        # 创建默认租户
+        tenant = Tenant(
+            tenant_id=f"tnt_{uuid.uuid4().hex[:16]}",
+            name="默认租户",
+            token_hash="",
+            api_key="sk_1683601c8ac505c56c7542df3443683d",
+            status=TenantStatus.ACTIVE,
+            gpu_memory_util=0.4,
+            max_model_len=4096,
+            storage_quota_gb=50,
+            qps_limit=10,
+        )
+        session.add(tenant)
+        await session.commit()
+
+
 async def init_db():
-    """初始化数据库（创建所有表）"""
+    """初始化数据库（创建所有表 + 种子数据）"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    # 种子数据
+    await _seed_default_tenant()
 
 
 async def get_db() -> AsyncSession:

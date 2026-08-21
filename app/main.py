@@ -194,6 +194,29 @@ async def health_check():
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
 
+# SSE 测试端点
+@app.get("/test-sse", tags=["系统"], summary="SSE 流测试")
+async def test_sse():
+    from starlette.responses import StreamingResponse
+    import asyncio
+
+    async def generate():
+        yield "data: {\"message\": \"hello\"}\n\n"
+        await asyncio.sleep(0.5)
+        yield "data: {\"message\": \"world\"}\n\n"
+        await asyncio.sleep(0.5)
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
+
+
 # ==================== 前端静态文件托管 ====================
 # 构建后的前端产物放在 web/dist 目录下，由 FastAPI 直接托管
 _web_dist = Path(__file__).resolve().parent.parent / "web" / "dist"

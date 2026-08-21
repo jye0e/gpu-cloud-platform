@@ -3,12 +3,14 @@
  * - 服务列表
  * - 启停/重启/删除
  * - 查看日志
+ * - API 调用方法（代码示例、快速测试）
  */
 
 import { useEffect, useState } from 'react'
 import {
   Server, Play, Square, RotateCw, Trash2, FileText,
-  Cpu, Clock, AlertCircle, RefreshCw
+  Cpu, Clock, AlertCircle, RefreshCw, Zap, Copy, Check,
+  Terminal, ExternalLink, Key
 } from 'lucide-react'
 import {
   Card, Button, StatusBadge, Modal, toast, PageLoader, EmptyState
@@ -22,6 +24,8 @@ export default function ServicesPage() {
   const [logModal, setLogModal] = useState(null)
   const [logs, setLogs] = useState('')
   const [logsLoading, setLogsLoading] = useState(false)
+  const [apiModal, setApiModal] = useState(null)
+  const [copiedField, setCopiedField] = useState('')
 
   const fetchServices = async () => {
     try {
@@ -36,7 +40,6 @@ export default function ServicesPage() {
 
   useEffect(() => {
     fetchServices()
-    // 定时刷新（每 10 秒）
     const timer = setInterval(fetchServices, 10000)
     return () => clearInterval(timer)
   }, [])
@@ -69,9 +72,24 @@ export default function ServicesPage() {
     }
   }
 
+  const handleViewApi = (service) => {
+    setApiModal(service)
+  }
+
+  const copyToClipboard = (text, field) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedField(field)
+      setTimeout(() => setCopiedField(''), 1500)
+    })
+  }
+
   const formatDate = (iso) => {
     const d = new Date(iso)
     return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+  }
+
+  const getApiBaseUrl = (service) => {
+    return `http://120.202.35.106:8888/api/tenant/inference/${service.service_name}/v1`
   }
 
   if (loading) return <PageLoader />
@@ -142,8 +160,30 @@ export default function ServicesPage() {
                       </div>
                     )}
                     {s.inference_endpoint && s.status === 'running' && (
-                      <div className="mt-2 text-xs text-emerald-400 bg-emerald-900/30 px-2.5 py-1.5 rounded-lg font-mono">
-                        POST {s.inference_endpoint}/chat/completions
+                      <div className="mt-2 flex items-center gap-2">
+                        <code className="text-xs text-emerald-400 bg-emerald-900/30 px-2.5 py-1.5 rounded-lg font-mono flex-1 truncate">
+                          {getApiBaseUrl(s)}/chat/completions
+                        </code>
+                        <button
+                          onClick={() => copyToClipboard(`${getApiBaseUrl(s)}/chat/completions`, `endpoint-${s.service_id}`)}
+                          className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-300 transition-colors"
+                          title="复制端点"
+                        >
+                          {copiedField === `endpoint-${s.service_id}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => setApiModal(s)}
+                        >
+                          <Terminal className="w-3.5 h-3.5" /> API
+                        </Button>
+                        <a
+                          href="/inference"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-slate-900 rounded-lg text-xs font-medium transition-colors"
+                        >
+                          <Zap className="w-3.5 h-3.5" /> 测试
+                        </a>
                       </div>
                     )}
                   </div>
@@ -223,6 +263,134 @@ export default function ServicesPage() {
           <pre className="bg-slate-950 text-slate-400 p-4 rounded-lg text-xs font-mono overflow-auto max-h-96 whitespace-pre-wrap">
             {logs || '无日志'}
           </pre>
+        )}
+      </Modal>
+
+      {/* API 调用弹窗 */}
+      <Modal
+        open={!!apiModal}
+        onClose={() => setApiModal(null)}
+        title={`API 调用方法 - ${apiModal?.service_name || ''}`}
+        size="lg"
+      >
+        {apiModal && (
+          <div className="space-y-4">
+            {/* 端点信息 */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-slate-200 flex items-center gap-1.5">
+                <Key className="w-4 h-4 text-amber-400" /> 调用端点
+              </h4>
+              <div className="bg-slate-950 rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 bg-emerald-900/50 text-emerald-400 rounded font-mono">POST</span>
+                  <code className="flex-1 text-xs text-slate-300 font-mono truncate">
+                    {getApiBaseUrl(apiModal)}/chat/completions
+                  </code>
+                  <button
+                    onClick={() => copyToClipboard(`${getApiBaseUrl(apiModal)}/chat/completions`, 'curl-url')}
+                    className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    {copiedField === 'curl-url' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 bg-blue-900/50 text-blue-400 rounded font-mono">GET</span>
+                  <code className="flex-1 text-xs text-slate-300 font-mono truncate">
+                    {getApiBaseUrl(apiModal)}/models
+                  </code>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 bg-purple-900/50 text-purple-400 rounded font-mono">POST</span>
+                  <code className="flex-1 text-xs text-slate-300 font-mono truncate">
+                    {getApiBaseUrl(apiModal)}/chat/completions (stream: true)
+                  </code>
+                </div>
+              </div>
+            </div>
+
+            {/* cURL 示例 */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-slate-200">cURL 示例</h4>
+              <div className="relative">
+                <pre className="bg-slate-950 rounded-lg p-3 text-xs text-slate-300 font-mono overflow-x-auto max-h-48">
+{`curl -X POST ${getApiBaseUrl(apiModal)}/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer <API_KEY>" \\
+  -d '{
+    "model": "${apiModal.model_name}",
+    "messages": [{"role": "user", "content": "你好"}],
+    "max_tokens": 256
+  }'`}
+                </pre>
+                <button
+                  onClick={() => copyToClipboard(`curl -X POST ${getApiBaseUrl(apiModal)}/chat/completions -H "Content-Type: application/json" -H "Authorization: Bearer <API_KEY>" -d '{"model": "${apiModal.model_name}", "messages": [{"role": "user", "content": "你好"}], "max_tokens": 256}'`, 'curl')}
+                  className="absolute top-2 right-2 p-1.5 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  {copiedField === 'curl' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Python 示例 */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-slate-200">Python 示例</h4>
+              <div className="relative">
+                <pre className="bg-slate-950 rounded-lg p-3 text-xs text-slate-300 font-mono overflow-x-auto max-h-48">
+{`import requests
+
+url = "${getApiBaseUrl(apiModal)}/chat/completions"
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer <API_KEY>"
+}
+data = {
+    "model": "${apiModal.model_name}",
+    "messages": [{"role": "user", "content": "你好"}],
+    "max_tokens": 256
+}
+
+# 非流式
+resp = requests.post(url, headers=headers, json=data)
+print(resp.json())
+
+# 流式
+data["stream"] = True
+with requests.post(url, headers=headers, json=data, stream=True) as resp:
+    for line in resp.iter_lines():
+        if line.startswith(b"data: "):
+            chunk = line[6:]
+            if chunk == b"[DONE]": break
+            print(chunk.decode())`}
+                </pre>
+                <button
+                  onClick={() => copyToClipboard('import requests\n\nurl = "' + getApiBaseUrl(apiModal) + '/chat/completions"\nheaders = {\n    "Content-Type": "application/json",\n    "Authorization": "Bearer <API_KEY>"\n}\ndata = {\n    "model": "' + apiModal.model_name + '",\n    "messages": [{"role": "user", "content": "你好"}],\n    "max_tokens": 256\n}\n\nresp = requests.post(url, headers=headers, json=data)\nprint(resp.json())', 'python')}
+                  className="absolute top-2 right-2 p-1.5 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  {copiedField === 'python' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* 说明 */}
+            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 text-xs text-slate-400 space-y-1">
+              <p className="font-medium text-slate-300">📝 调用说明</p>
+              <ul className="space-y-1 list-disc list-inside">
+                <li><code className="text-slate-300">model</code> 字段已自动填入模型名 <code className="text-emerald-400">{apiModal.model_name}</code>，也可填任意值，平台会自动映射</li>
+                <li>请求头需携带 <code className="text-slate-300">Authorization: Bearer &lt;API_KEY&gt;</code></li>
+                <li>流式请求添加 <code className="text-slate-300">"stream": true</code>，响应为 SSE 格式</li>
+              </ul>
+            </div>
+
+            {/* 快速跳转 */}
+            <div className="flex gap-2 pt-2">
+              <a
+                href="/inference"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-slate-900 rounded-lg text-sm font-medium transition-colors"
+              >
+                <Zap className="w-4 h-4" /> 前往推理测试
+              </a>
+            </div>
+          </div>
         )}
       </Modal>
     </div>

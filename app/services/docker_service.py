@@ -213,11 +213,22 @@ async def deploy_service(
             container_kwargs["mem_limit"] = f"{mem_limit}g"
         cpu_limit = deploy_params.get("cpu_limit", 4.0)
         if cpu_limit:
-            container_kwargs["cpu_limit"] = cpu_limit
+            # Docker SDK 使用 cpu_quota/cpu_period 而非 cpu_limit
+            # cpu_period 默认为 100000 微秒，表示一个 CPU 周期
+            # cpu_quota = cpu_limit * cpu_period
+            container_kwargs["cpu_period"] = 100000
+            container_kwargs["cpu_quota"] = int(cpu_limit * 100000)
 
         # 额外环境变量
         if engine_config.extra_env:
             container_kwargs["environment"] = engine_config.extra_env
+
+        # vLLM 特定环境变量：禁用 CUDA Graph 内存预估（避免初始化失败）
+        if engine_type == "vllm":
+            env = container_kwargs.get("environment", {})
+            if isinstance(env, dict):
+                env["VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS"] = "0"
+                container_kwargs["environment"] = env
 
         container = client.containers.create(**container_kwargs)
 
@@ -231,14 +242,15 @@ async def deploy_service(
             f"gpu={gpu_id} port={engine_port} engine={engine_type}"
         )
 
-        # 7. 等待服务就绪（最多等待 120 秒）
+        # 7. 等待服务就绪（最多等待 300 秒，大模型加载需要时间）
         import asyncio
         import httpx
 
         health_url = get_health_check_url(engine_type, engine_config, engine_port)
         ready = False
+        max_wait = 60  # 60 * 5s = 300s
 
-        for attempt in range(24):  # 24 * 5s = 120s
+        for attempt in range(max_wait):
             await asyncio.sleep(5)
             try:
                 resp = await httpx.AsyncClient().get(health_url, timeout=5)
@@ -250,9 +262,10 @@ async def deploy_service(
                     )
                     break
             except Exception:
-                logger.debug(
-                    f"等待 {engine_type} 就绪... 尝试 {attempt + 1}/24"
-                )
+                if (attempt + 1) % 10 == 0:
+                    logger.info(
+                        f"等待 {engine_type} 就绪... 尝试 {attempt + 1}/{max_wait}"
+                    )
 
         if not ready:
             # 获取容器日志用于排错
@@ -270,7 +283,7 @@ async def deploy_service(
                 pass
 
             service.status = ServiceStatus.ERROR
-            service.error_message = f"{engine_type} 服务启动超时（120秒内未就绪）"
+            service.error_message = f"{engine_type} 服务启动超时（300秒内未就绪）"
             await db.flush()
             raise RuntimeError(f"{engine_type} 服务启动超时")
 
