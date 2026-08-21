@@ -2,42 +2,67 @@ version: "3.8"
 
 services:
   gpu-cloud-platform:
-    build: .
+    image: gpu-cloud-platform:latest
     container_name: gpu-cloud-platform
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${APP_PORT:-8000}:8000"
     volumes:
-      # 持久化数据（SQLite + 上传的模型文件）
+      # 持久化数据（SQLite 数据库 + 上传的模型文件）
       - ./data:/app/data
+      # 模型存储目录（与 STORAGE_ROOT 对应）
+      - ${STORAGE_HOST:-./data/models}:/data/models
+      # 日志持久化
       - ./logs:/app/logs
       # 挂载 Docker 套接字（用于管理推理容器）
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
+      # --- 基础服务配置 ---
       - APP_HOST=0.0.0.0
       - APP_PORT=8000
-      - APP_DEBUG=false
+      - APP_DEBUG=${APP_DEBUG:-false}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
-      - DATABASE_URL=sqlite+aiosqlite:///./data/gpu_cloud.db
+
+      # --- 数据库 ---
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///./data/gpu_cloud.db}
+
+      # --- 存储与日志 ---
       - STORAGE_ROOT=/data/models
       - LOG_DIR=./logs
+
+      # --- Docker 配置 ---
       - DOCKER_SOCKET=unix:///var/run/docker.sock
+      # 国内镜像源前缀（留空则使用默认源）
+      - IMAGE_MIRROR_PREFIX=${IMAGE_MIRROR_PREFIX:-}
+
+      # --- 推理引擎镜像 ---
       - VLLM_IMAGE=${VLLM_IMAGE:-vllm/vllm-openai:latest}
       - TENSORRT_LLM_IMAGE=${TENSORRT_LLM_IMAGE:-nvcr.io/nvidia/tensorrt-llm:latest}
       - LM_DEPLOY_IMAGE=${LM_DEPLOY_IMAGE:-openmmlab/lmdeploy:latest}
       - SGLANG_IMAGE=${SGLANG_IMAGE:-lmsysorg/sglang:latest}
       - TGI_IMAGE=${TGI_IMAGE:-ghcr.io/huggingface/text-generation-inference:latest}
       - OLLAMA_IMAGE=${OLLAMA_IMAGE:-ollama/ollama:latest}
+
+      # --- GPU 资源配置 ---
       - GPU_MEMORY_RESERVE_MB=${GPU_MEMORY_RESERVE_MB:-2048}
       - MAX_TENANTS_PER_GPU=${MAX_TENANTS_PER_GPU:-2}
       - DEFAULT_GPU_MEMORY_UTIL=${DEFAULT_GPU_MEMORY_UTIL:-0.4}
       - DEFAULT_MAX_MODEL_LEN=${DEFAULT_MAX_MODEL_LEN:-4096}
+
+      # --- 配额与限流 ---
       - DEFAULT_STORAGE_QUOTA_GB=${DEFAULT_STORAGE_QUOTA_GB:-50}
       - DEFAULT_QPS_LIMIT=${DEFAULT_QPS_LIMIT:-10}
       - GATEWAY_RATE_LIMIT=${GATEWAY_RATE_LIMIT:-100}
       - IDLE_TIMEOUT_MINUTES=${IDLE_TIMEOUT_MINUTES:-30}
+
+      # --- 日志 ---
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    # 需要 GPU 权限（用于 nvidia-smi 检测和分配）
+
+    # GPU 支持（需要 NVIDIA 驱动 + NVIDIA Container Toolkit）
+    # 若无需 GPU 功能，注释掉以下三行即可
     deploy:
       resources:
         reservations:
@@ -45,5 +70,4 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    # 非 swarm 模式下的 GPU 配置
     runtime: ${DOCKER_RUNTIME:-nvidia}

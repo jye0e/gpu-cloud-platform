@@ -2,6 +2,7 @@ node_modules
 .git
 .gitignore
 .env
+.env.local
 *.pyc
 __pycache__
 .venv
@@ -10,3 +11,5 @@ logs
 data
 check_token.py
 fix_db.py
+# 前端构建产物（Docker 构建时会重新构建）
+web/dist
