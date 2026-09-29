@@ -13,6 +13,8 @@ import hashlib
 from pathlib import Path
 from typing import Optional
 
+import aiofiles
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -169,7 +171,7 @@ async def upload_chunk(
         return task
 
     # 写入分片
-    async with open(chunk_file, "wb") as f:
+    async with aiofiles.open(chunk_file, "wb") as f:
         await f.write(chunk_data)
 
     # 更新进度

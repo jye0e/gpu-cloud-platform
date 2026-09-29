@@ -7,6 +7,7 @@
 """
 
 import asyncio
+import sys
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -25,6 +26,7 @@ from app.api import (
     deploy_routes,
     inference_routes,
     resource_routes,
+    import_routes,
     auth_routes,
 )
 
@@ -186,6 +188,7 @@ app.include_router(upload_routes.router)
 app.include_router(deploy_routes.router)
 app.include_router(inference_routes.router)
 app.include_router(resource_routes.router)
+app.include_router(import_routes.router)
 
 
 # 健康检查
@@ -219,7 +222,16 @@ async def test_sse():
 
 # ==================== 前端静态文件托管 ====================
 # 构建后的前端产物放在 web/dist 目录下，由 FastAPI 直接托管
-_web_dist = Path(__file__).resolve().parent.parent / "web" / "dist"
+# PyInstaller 打包后（frozen）从 _MEIPASS 解包目录中定位 web/dist
+def _get_web_dist() -> Path:
+    if getattr(sys, "frozen", False):
+        base = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    else:
+        base = Path(__file__).resolve().parent.parent
+    return base / "web" / "dist"
+
+
+_web_dist = _get_web_dist()
 if _web_dist.exists():
     app.mount("/assets", StaticFiles(directory=_web_dist / "assets"), name="assets")
 

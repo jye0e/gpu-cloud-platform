@@ -185,6 +185,10 @@ export default function Dashboard() {
               </div>
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between">
+                  <span className="text-slate-500">显存总量</span>
+                  <span className="text-slate-300">{resource?.gpu_config?.total_memory_gb || 0} GB</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-slate-500">显存利用率上限</span>
                   <span className="text-slate-300">{Math.round((resource?.gpu_config?.gpu_memory_util_limit || 0) * 100)}%</span>
                 </div>

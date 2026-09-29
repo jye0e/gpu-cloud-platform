@@ -13,7 +13,7 @@ import {
   Terminal, ExternalLink, Key
 } from 'lucide-react'
 import {
-  Card, Button, StatusBadge, Modal, toast, PageLoader, EmptyState
+  Card, Button, StatusBadge, Modal, toast, PageLoader, EmptyState, copyText
 } from '../components/ui'
 import { deployApi } from '../api/client'
 
@@ -77,9 +77,11 @@ export default function ServicesPage() {
   }
 
   const copyToClipboard = (text, field) => {
-    navigator.clipboard.writeText(text).then(() => {
+    copyText(text).then(() => {
       setCopiedField(field)
       setTimeout(() => setCopiedField(''), 1500)
+    }).catch(() => {
+      toast('复制失败，请手动复制', 'error')
     })
   }
 
@@ -89,7 +91,8 @@ export default function ServicesPage() {
   }
 
   const getApiBaseUrl = (service) => {
-    return `http://120.202.35.106:8888/api/tenant/inference/${service.service_name}/v1`
+    // 跟随当前浏览器访问地址，避免硬编码 IP/端口
+    return `${window.location.origin}/api/tenant/inference/${service.service_name}/v1`
   }
 
   if (loading) return <PageLoader />

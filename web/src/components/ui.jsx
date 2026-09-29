@@ -124,6 +124,28 @@ export function Select({ label, options = [], className = '', ...props }) {
   )
 }
 
+// 复制文本到剪贴板（HTTP 非安全上下文下降级为 execCommand）
+export function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text)
+  }
+  return new Promise((resolve, reject) => {
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      ok ? resolve() : reject(new Error('copy failed'))
+    } catch (e) {
+      reject(e)
+    }
+  })
+}
+
 // 文本域
 export function Textarea({ label, className = '', ...props }) {
   return (

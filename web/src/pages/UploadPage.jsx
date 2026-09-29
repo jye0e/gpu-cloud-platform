@@ -6,17 +6,24 @@
  * - 断点续传
  */
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import {
   Upload, FileText, CheckCircle, XCircle, Loader2,
-  Pause, Play, Trash2, CloudUpload
+  Pause, Play, Trash2, CloudUpload, Download, X, ArrowRight
 } from 'lucide-react'
 import {
-  Card, Button, Progress, toast, EmptyState
+  Card, Button, Progress, toast, EmptyState, Select
 } from '../components/ui'
 import { uploadApi } from '../api/client'
 
 const CHUNK_SIZE = 10 * 1024 * 1024 // 10MB
+
+const IMPORT_STATUS_MAP = {
+  downloading: { label: '下载中', color: 'text-brand-300' },
+  completed: { label: '已完成', color: 'text-emerald-400' },
+  failed: { label: '失败', color: 'text-red-400' },
+  cancelled: { label: '已取消', color: 'text-slate-500' },
+}
 
 export default function UploadPage() {
   const [file, setFile] = useState(null)
@@ -30,6 +37,12 @@ export default function UploadPage() {
   const fileInputRef = useRef(null)
   const pauseRef = useRef(false)
   const cancelRef = useRef(false)
+
+  // 模型库导入
+  const [importSource, setImportSource] = useState('modelscope')
+  const [repoId, setRepoId] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importTasks, setImportTasks] = useState([])
 
   const formatSize = (bytes) => {
     if (bytes < 1024) return `${bytes} B`
@@ -174,6 +187,52 @@ export default function UploadPage() {
     }
   }, [])
 
+  // ---- 模型库导入 ----
+  const refreshImports = useCallback(async () => {
+    try {
+      const data = await uploadApi.listImports()
+      setImportTasks(data.tasks || [])
+    } catch { /* 静默失败 */ }
+  }, [])
+
+  useEffect(() => { refreshImports() }, [refreshImports])
+
+  const hasActiveImport = importTasks.some(t => ['downloading', 'pending'].includes(t.status))
+
+  useEffect(() => {
+    if (!hasActiveImport) return
+    const timer = setInterval(refreshImports, 2000)
+    return () => clearInterval(timer)
+  }, [hasActiveImport, refreshImports])
+
+  const startImport = async () => {
+    if (!repoId.trim()) {
+      toast('请输入模型仓库名称', 'warning')
+      return
+    }
+    setImporting(true)
+    try {
+      await uploadApi.importModel({ repo_id: repoId.trim(), source: importSource })
+      toast('导入任务已创建，开始下载', 'success')
+      setRepoId('')
+      refreshImports()
+    } catch (err) {
+      toast(`导入失败: ${err.message}`, 'error')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const cancelImport = async (taskId) => {
+    try {
+      await uploadApi.cancelImport(taskId)
+      toast('已请求取消', 'warning')
+      refreshImports()
+    } catch (err) {
+      toast(`取消失败: ${err.message}`, 'error')
+    }
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
@@ -307,6 +366,87 @@ export default function UploadPage() {
           </Card>
         </>
       )}
+
+      {/* 模型库导入 */}
+      <Card className="p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Download className="w-5 h-5 text-brand-300" />
+          <h3 className="font-semibold text-slate-100">从模型库导入完整模型</h3>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">
+          自动拉取全部权重分片和 config.json / tokenizer 等配置文件，无需逐个上传（分片模型推荐用此方式）
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Select
+            value={importSource}
+            onChange={(e) => setImportSource(e.target.value)}
+            options={[
+              { value: 'modelscope', label: 'ModelScope（国内快）' },
+              { value: 'hf', label: 'HuggingFace' },
+            ]}
+          />
+          <input
+            value={repoId}
+            onChange={(e) => setRepoId(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && startImport()}
+            placeholder="例如: Qwen/Qwen2.5-0.5B-Instruct"
+            className="flex-1 px-3.5 py-2.5 rounded-lg border border-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all bg-slate-800"
+          />
+          <Button onClick={startImport} loading={importing} disabled={!repoId.trim()}>
+            <Download className="w-4 h-4" /> 导入
+          </Button>
+        </div>
+
+        {/* 导入任务列表 */}
+        {importTasks.length > 0 && (
+          <div className="mt-5 space-y-3">
+            {importTasks.map(t => {
+              const st = IMPORT_STATUS_MAP[t.status] || { label: t.status, color: 'text-slate-400' }
+              return (
+                <div key={t.task_id} className="p-4 rounded-lg border border-slate-700 bg-slate-800/50">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-200 truncate font-mono">{t.repo_id}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {t.files_done}/{t.files_total} 个文件 · {formatSize(t.downloaded_bytes)} / {formatSize(t.total_bytes)}
+                        {t.status === 'downloading' && ` · ${t.speed_mb_s} MB/s`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-xs font-medium ${st.color}`}>{st.label}</span>
+                      {t.status === 'downloading' && (
+                        <button
+                          onClick={() => cancelImport(t.task_id)}
+                          className="p-1 rounded hover:bg-slate-700 text-slate-500"
+                          title="取消导入"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {t.status === 'downloading' && (
+                    <>
+                      <Progress value={t.progress_percent} />
+                      <p className="text-xs text-slate-600 mt-1.5 truncate">
+                        {t.current_file ? `正在下载: ${t.current_file}` : '准备中...'}
+                      </p>
+                    </>
+                  )}
+                  {t.status === 'failed' && t.error && (
+                    <p className="text-xs text-red-400 mt-1">{t.error}</p>
+                  )}
+                  {t.status === 'completed' && (
+                    <a href="/deploy" className="text-xs text-brand-300 hover:underline inline-flex items-center gap-1 mt-1">
+                      去部署 <ArrowRight className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

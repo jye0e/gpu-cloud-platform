@@ -7,6 +7,7 @@ Docker 容器管理服务
 """
 
 import json
+import os
 import socket
 from typing import Optional
 
@@ -149,6 +150,9 @@ async def deploy_service(
     )
 
     try:
+        # Docker 挂载卷要求绝对路径
+        model_path = os.path.abspath(model_path)
+
         # 更新状态为部署中
         service.status = ServiceStatus.DEPLOYING
         await db.flush()

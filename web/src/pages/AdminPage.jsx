@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import {
   Card, Button, Input, Select, StatusBadge, Modal,
-  toast, PageLoader, EmptyState, Progress
+  toast, PageLoader, EmptyState, Progress, copyText
 } from '../components/ui'
 import { adminApi } from '../api/client'
 
@@ -108,8 +108,9 @@ export default function AdminPage() {
   }
 
   const handleCopy = (text, label) => {
-    navigator.clipboard.writeText(text)
-    toast(`${label} 已复制`, 'success')
+    copyText(text)
+      .then(() => toast(`${label} 已复制`, 'success'))
+      .catch(() => toast('复制失败，请手动复制', 'error'))
   }
 
   const handleStatusChange = async (tenantId, newStatus) => {

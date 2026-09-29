@@ -10,7 +10,7 @@ import {
   HardDrive, LogOut, Cloud, Menu, X, Cpu, Copy
 } from 'lucide-react'
 import { resourceApi } from '../api/client'
-import { toast } from '../components/ui'
+import { toast, copyText } from '../components/ui'
 
 const navItems = [
   { path: '/dashboard', label: '概览', icon: LayoutDashboard },
@@ -97,8 +97,9 @@ export default function Layout() {
                 <p className="text-xs font-mono text-slate-500 truncate">{resourceData.tenant_id}</p>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(resourceData.tenant_id)
-                    toast('租户 ID 已复制', 'success')
+                    copyText(resourceData.tenant_id)
+                      .then(() => toast('租户 ID 已复制', 'success'))
+                      .catch(() => toast('复制失败，请手动复制', 'error'))
                   }}
                   className="shrink-0 p-0.5 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-300 transition-colors"
                   title="复制租户 ID"

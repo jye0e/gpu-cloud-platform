@@ -34,6 +34,11 @@ web/dist/
 # 前端依赖
 web/node_modules/
 
+# PyInstaller 打包产物
+build/
+dist/
+*.spec.bak
+
 # IDE
 .vscode/
 .idea/

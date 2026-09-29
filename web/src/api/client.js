@@ -88,6 +88,19 @@ export const uploadApi = {
 
   cancel: (taskId) =>
     request(`/api/tenant/upload_model/cancel?task_id=${taskId}`, { method: 'DELETE' }),
+
+  // ---- 模型库导入 ----
+  importModel: (body) =>
+    request('/api/tenant/models/import', { method: 'POST', body: JSON.stringify(body) }),
+
+  listImports: () =>
+    request('/api/tenant/models/import/tasks'),
+
+  getImportStatus: (taskId) =>
+    request(`/api/tenant/models/import/${taskId}`),
+
+  cancelImport: (taskId) =>
+    request(`/api/tenant/models/import/${taskId}/cancel`, { method: 'POST' }),
 }
 
 // ==================== 租户端 - 部署与服务管理 ====================

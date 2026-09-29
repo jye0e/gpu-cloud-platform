@@ -28,6 +28,18 @@ async def get_tenant_resource_usage(tenant: Tenant) -> dict:
 
     storage_bytes = await get_tenant_storage_usage(tenant.tenant_id)
 
+    # 计算租户可用 GPU 显存总量（未分配设备则统计全部 GPU）
+    gpu_info = get_gpu_info()
+    assigned_ids = [
+        x.strip() for x in (tenant.gpu_device_ids or "").split(",") if x.strip()
+    ]
+    target_gpus = (
+        {k: v for k, v in gpu_info.items() if k in assigned_ids}
+        if assigned_ids
+        else gpu_info
+    )
+    total_memory_mb = sum(v["total_mb"] for v in target_gpus.values())
+
     # 查询运行中的服务数
     return {
         "tenant_id": tenant.tenant_id,
@@ -39,6 +51,7 @@ async def get_tenant_resource_usage(tenant: Tenant) -> dict:
             "usage_percent": round(storage_bytes / (tenant.storage_quota_gb * 1024**3) * 100, 1),
         },
         "gpu_config": {
+            "total_memory_gb": round(total_memory_mb / 1024, 1),
             "gpu_memory_util_limit": tenant.gpu_memory_util,
             "max_model_len": tenant.max_model_len,
             "assigned_gpu_ids": tenant.gpu_device_ids,
