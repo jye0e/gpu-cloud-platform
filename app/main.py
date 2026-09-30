@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -244,7 +245,7 @@ if _web_dist.exists():
         # 查找静态文件
         file_path = _web_dist / full_path
         if file_path.is_file():
-            return StaticFiles(directory=_web_dist).get_response(full_path, {})
+            return FileResponse(file_path)
         # SPA 回退到 index.html
         index = _web_dist / "index.html"
         if index.exists():

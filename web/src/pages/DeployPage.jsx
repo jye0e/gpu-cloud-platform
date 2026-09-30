@@ -90,7 +90,7 @@ export default function DeployPage() {
   if (loading) return <PageLoader />
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-slate-100 mb-1">模型部署</h2>
         <p className="text-sm text-slate-400">选择已上传的模型，配置参数后一键部署</p>

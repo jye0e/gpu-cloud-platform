@@ -32,7 +32,7 @@ export default function ResourcesPage() {
   const gpuUtil = data.gpu_config?.gpu_memory_util_limit || 0
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-slate-100 mb-1">资源管理</h2>
         <p className="text-sm text-slate-400">查看当前租户的资源配额与使用情况</p>

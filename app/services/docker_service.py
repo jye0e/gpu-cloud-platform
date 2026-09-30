@@ -9,6 +9,7 @@ Docker 容器管理服务
 import json
 import os
 import socket
+from pathlib import Path
 from typing import Optional
 
 import docker
@@ -96,35 +97,74 @@ def get_gpu_info() -> dict:
         return {}
 
 
-def select_gpu_for_tenant(tenant: Tenant) -> str:
+# 参与显存估算的权重文件扩展名
+_WEIGHT_EXTS = {".safetensors", ".bin", ".gguf", ".pt", ".pth"}
+
+
+def estimate_model_size_mb(model_path: str) -> float:
+    """估算模型权重总大小（MB），无法估算时返回 0（由调用方退回单卡）"""
+    p = Path(model_path)
+    try:
+        if p.is_file():
+            return p.stat().st_size / (1024 ** 2)
+        if p.is_dir():
+            total = sum(
+                f.stat().st_size
+                for f in p.rglob("*")
+                if f.is_file() and f.suffix.lower() in _WEIGHT_EXTS
+            )
+            return total / (1024 ** 2)
+    except OSError as e:
+        logger.warning(f"估算模型大小失败: {e}")
+    return 0.0
+
+
+def select_gpus_for_tenant(
+    tenant: Tenant,
+    model_size_mb: float,
+    gpu_memory_util: float,
+    min_gpus: int = 1,
+) -> list[str]:
     """
-    为租户选择最合适的 GPU
-    策略：选择空闲显存最多的 GPU
+    为租户选择 GPU：单卡放得下就用 1 张，放不下自动扩展到多卡
+    策略：按可用显存降序，取满足权重容量的最少卡数（TP 下权重均分）
     """
     gpu_info = get_gpu_info()
     if not gpu_info:
-        # 没有 GPU 信息，返回默认 0
         logger.warning("无法获取 GPU 信息，默认使用 GPU 0")
-        return "0"
+        return ["0"]
 
-    # 过滤掉预留显存不足的 GPU
-    best_gpu = None
-    best_free = 0
+    usable = {}
     for gpu_id, info in gpu_info.items():
-        # 保留系统预留显存
-        available = info["free_mb"] - settings.GPU_MEMORY_RESERVE_MB
-        if available > best_free:
-            best_free = available
-            best_gpu = gpu_id
+        available = (info["free_mb"] - settings.GPU_MEMORY_RESERVE_MB) * gpu_memory_util
+        if available > 0:
+            usable[gpu_id] = available
 
-    if best_gpu is None:
+    if not usable:
         raise RuntimeError("没有可用的 GPU 资源")
 
-    logger.info(
-        f"为租户 {tenant.tenant_id} 分配 GPU {best_gpu} "
-        f"(空闲显存: {best_free}MB)"
+    ranked = sorted(usable.items(), key=lambda x: -x[1])
+
+    # 留 10% 余量抵消权重加载期的临时开销
+    need_mb = model_size_mb * 1.1
+    start = max(1, min_gpus)
+    for n in range(start, len(ranked) + 1):
+        # 排序后第 n 项即前 n 张中最小的可用显存
+        if ranked[n - 1][1] * n >= need_mb:
+            gpu_ids = [gid for gid, _ in ranked[:n]]
+            logger.info(
+                f"为租户 {tenant.tenant_id} 分配 GPU {gpu_ids} "
+                f"(模型约 {model_size_mb:.0f}MB, "
+                f"每卡可用: {', '.join(f'{m:.0f}MB' for _, m in ranked[:n])})"
+            )
+            return gpu_ids
+
+    total_usable = sum(m for _, m in ranked)
+    raise RuntimeError(
+        f"GPU 资源不足：模型约 {model_size_mb:.0f}MB，"
+        f"全部 {len(ranked)} 张可用 GPU 合计仅可承载 {total_usable:.0f}MB"
+        + (f"，且无法满足指定的 {start} 卡并行" if start > len(ranked) else "")
     )
-    return best_gpu
 
 
 async def deploy_service(
@@ -163,9 +203,17 @@ async def deploy_service(
 
         client = get_docker_client()
 
-        # 1. 选择 GPU
-        gpu_id = select_gpu_for_tenant(tenant)
-        service.gpu_device_id = gpu_id
+        # 1. 估算模型大小并选择 GPU（超出单卡容量自动扩展多卡）
+        gpu_memory_util = deploy_params.get("gpu_memory_utilization", 0.4)
+        model_size_mb = estimate_model_size_mb(model_path)
+        user_tp = int(deploy_params.get("tensor_parallel_size", 1))
+        gpu_ids = select_gpus_for_tenant(
+            tenant, model_size_mb, gpu_memory_util, min_gpus=user_tp
+        )
+        service.gpu_device_id = ",".join(gpu_ids)
+
+        # 写回实际卡数，引擎命令据此生成 --tensor-parallel-size
+        deploy_params = {**deploy_params, "tensor_parallel_size": len(gpu_ids)}
 
         # 2. 分配内部端口
         engine_port = find_free_port()
@@ -191,7 +239,7 @@ async def deploy_service(
             name=container_name,
             device_requests=[
                 docker.types.DeviceRequest(
-                    device_ids=[gpu_id],
+                    device_ids=gpu_ids,
                     capabilities=[["gpu"]],
                 )
             ],
@@ -200,6 +248,10 @@ async def deploy_service(
             auto_remove=False,
             network_mode="bridge",
         )
+
+        # 多卡张量并行依赖 NCCL 通信，默认 64MB 共享内存不够用
+        if len(gpu_ids) > 1:
+            container_kwargs["ipc_mode"] = "host"
 
         # 只有非空命令才传
         if engine_cmd:
@@ -243,7 +295,7 @@ async def deploy_service(
         container.start()
         logger.info(
             f"容器已启动 | container={container_name} id={container.id[:12]} "
-            f"gpu={gpu_id} port={engine_port} engine={engine_type}"
+            f"gpu={','.join(gpu_ids)} port={engine_port} engine={engine_type}"
         )
 
         # 7. 等待服务就绪（最多等待 300 秒，大模型加载需要时间）
@@ -299,7 +351,7 @@ async def deploy_service(
 
         logger.info(
             f"部署成功 | tenant={tenant.tenant_id} service={service.service_name} "
-            f"engine={engine_type} port={engine_port} gpu={gpu_id}"
+            f"engine={engine_type} port={engine_port} gpu={','.join(gpu_ids)}"
         )
 
         return service

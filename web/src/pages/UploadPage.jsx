@@ -234,7 +234,7 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-slate-100 mb-1">模型上传</h2>
         <p className="text-sm text-slate-400">支持分片上传、断点续传，适用于大模型文件传输</p>
@@ -377,22 +377,25 @@ export default function UploadPage() {
           自动拉取全部权重分片和 config.json / tokenizer 等配置文件，无需逐个上传（分片模型推荐用此方式）
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
-          <Select
-            value={importSource}
-            onChange={(e) => setImportSource(e.target.value)}
-            options={[
-              { value: 'modelscope', label: 'ModelScope（国内快）' },
-              { value: 'hf', label: 'HuggingFace' },
-            ]}
-          />
+          <div className="sm:w-52 shrink-0">
+            <Select
+              className="h-11"
+              value={importSource}
+              onChange={(e) => setImportSource(e.target.value)}
+              options={[
+                { value: 'modelscope', label: 'ModelScope（国内快）' },
+                { value: 'hf', label: 'HuggingFace' },
+              ]}
+            />
+          </div>
           <input
             value={repoId}
             onChange={(e) => setRepoId(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && startImport()}
             placeholder="例如: Qwen/Qwen2.5-0.5B-Instruct"
-            className="flex-1 px-3.5 py-2.5 rounded-lg border border-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all bg-slate-800"
+            className="flex-1 min-w-0 h-11 px-3.5 py-2.5 rounded-lg border border-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent transition-all bg-slate-800"
           />
-          <Button onClick={startImport} loading={importing} disabled={!repoId.trim()}>
+          <Button className="h-11 px-6" onClick={startImport} loading={importing} disabled={!repoId.trim()}>
             <Download className="w-4 h-4" /> 导入
           </Button>
         </div>

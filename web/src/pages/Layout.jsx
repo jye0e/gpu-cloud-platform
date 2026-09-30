@@ -137,7 +137,7 @@ export default function Layout() {
       {/* 主内容区 */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* 顶栏 */}
-        <header className="flex items-center justify-between h-16 bg-slate-800 border-b border-slate-700 px-4 lg:px-6 shrink-0">
+        <header className="flex items-center justify-between h-16 bg-slate-900 border-b border-slate-700/50 px-4 lg:px-6 shrink-0">
           <div className="flex items-center gap-3">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-lg hover:bg-slate-700">
               <Menu className="w-5 h-5 text-slate-300" />

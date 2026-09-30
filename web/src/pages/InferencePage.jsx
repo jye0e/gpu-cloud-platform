@@ -169,7 +169,7 @@ export default function InferencePage() {
   if (loading) return <PageLoader />
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] max-w-4xl mx-auto">
+    <div className="flex flex-col h-[calc(100vh-8rem)]">
       {/* 头部 */}
       <div className="flex items-center justify-between mb-4">
         <div>
