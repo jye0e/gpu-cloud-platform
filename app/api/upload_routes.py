@@ -42,12 +42,17 @@ async def init_upload(
             model_name=req.model_name,
             total_size=req.total_size,
             chunk_size=req.chunk_size,
+            files=[f.model_dump() for f in req.files] if req.files else None,
         )
 
         await log_audit(
             db, tenant.id, "upload_init",
             resource=req.model_name,
-            detail={"task_id": task.task_id, "total_size": req.total_size},
+            detail={
+                "task_id": task.task_id,
+                "total_size": req.total_size,
+                "file_count": len(req.files) if req.files else 1,
+            },
         )
 
         return CreateUploadResponse(
@@ -75,7 +80,8 @@ async def upload_chunk(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        chunk_data = await file.read()
+        # 只读上限+1 字节：超限分片由服务层按期望大小拒绝，避免恶意超大分片耗尽内存
+        chunk_data = await file.read(upload_service.MAX_CHUNK_SIZE + 1)
         task = await upload_service.upload_chunk(
             db=db,
             tenant=tenant,
@@ -100,10 +106,16 @@ async def upload_chunk(
 @router.post(
     "/complete",
     summary="完成上传（合并分片）",
-    description="合并所有分片为完整模型文件，校验完整性，存储到租户专属目录。",
+    description=(
+        "合并所有分片为完整模型文件，按磁盘校验分片完整性与总大小，"
+        "可选传入期望 SHA256 比对内容完整性，通过后存储到租户专属目录。"
+    ),
 )
 async def complete_upload(
     task_id: str = Query(..., description="上传任务ID"),
+    expected_sha256: str | None = Query(
+        None, description="可选：期望的文件SHA256（64位十六进制），提供后服务端比对"
+    ),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ):
@@ -112,6 +124,7 @@ async def complete_upload(
             db=db,
             tenant=tenant,
             task_id=task_id,
+            expected_sha256=expected_sha256,
         )
 
         await log_audit(
@@ -130,6 +143,7 @@ async def complete_upload(
             "model_format": model.model_format,
             "file_size_bytes": model.file_size_bytes,
             "file_sha256": model.file_sha256,
+            "sha256_verified": bool((expected_sha256 or "").strip()),
             "message": "模型上传完成，可以开始部署",
         }
     except ValueError as e:

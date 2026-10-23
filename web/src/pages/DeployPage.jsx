@@ -40,6 +40,17 @@ export default function DeployPage() {
   // 部署结果
   const [result, setResult] = useState(null)
 
+  const selectedModel = models.find(m => String(m.model_id) === modelId)
+
+  // 引号感知分词：支持 "..." / '...' 包裹含空格的参数，简单按空白切会拆坏
+  const splitEntrypoint = (s) => {
+    const out = []
+    const re = /"([^"]*)"|'([^']*)'|(\S+)/g
+    let m
+    while ((m = re.exec(s))) out.push(m[1] ?? m[2] ?? m[3])
+    return out
+  }
+
   useEffect(() => {
     Promise.all([
       deployApi.listModels().then(data => ({ models: data.models || [] })),
@@ -60,6 +71,10 @@ export default function DeployPage() {
       toast('请输入服务名称', 'warning')
       return
     }
+    if (engineType === 'custom' && !customImage.trim()) {
+      toast('自定义引擎需要填写 Docker 镜像', 'warning')
+      return
+    }
 
     setDeploying(true)
     setResult(null)
@@ -74,7 +89,7 @@ export default function DeployPage() {
       if (engineType === 'custom') {
         body.custom_image = customImage.trim()
         if (customEntrypoint.trim()) {
-          body.custom_entrypoint = customEntrypoint.trim().split(/\s+/)
+          body.custom_entrypoint = splitEntrypoint(customEntrypoint.trim())
         }
       }
       const resp = await deployApi.deploy(body)
@@ -214,8 +229,19 @@ export default function DeployPage() {
                       label="启动命令（可选）"
                       value={customEntrypoint}
                       onChange={(e) => setCustomEntrypoint(e.target.value)}
-                      placeholder="例如: python -m my_engine.server --port 8000"
+                      placeholder="例如: python -m my_engine.server --model {model_path} --port 8000"
                     />
+                    {selectedModel?.model_path && (
+                      <p className="text-xs text-slate-500">
+                        模型挂载路径:
+                        <span className="font-mono text-slate-400 break-all"> {selectedModel.model_path}</span>
+                        ，命令中可用 <span className="font-mono text-slate-400">{'{model_path}'}</span> 占位符引用
+                      </p>
+                    )}
+                    <p className="text-xs text-slate-500">
+                      健康检查：容器 8000 端口 <span className="font-mono text-slate-400">GET /health</span> 需返回 200
+                      （每 5 秒探测，300 秒未就绪则部署失败并清理容器）
+                    </p>
                   </div>
                 )}
 

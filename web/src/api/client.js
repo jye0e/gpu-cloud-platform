@@ -70,15 +70,33 @@ export const uploadApi = {
   init: (body) =>
     request('/api/tenant/upload_model/init', { method: 'POST', body: JSON.stringify(body) }),
 
-  uploadChunk: (taskId, chunkIndex, chunkData) => {
-    const formData = new FormData()
-    formData.append('file', chunkData)
-    return fetch(`${BASE_URL}/api/tenant/upload_model/chunk?task_id=${taskId}&chunk_index=${chunkIndex}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${getToken()}` },
-      body: formData,
-    }).then(r => r.json())
-  },
+  uploadChunk: (taskId, chunkIndex, chunkData, onProgress) =>
+    // XHR 而非 fetch：fetch 无上传进度回调；必须校验状态码，否则 400 被吞导致进度假走
+    new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      const formData = new FormData()
+      formData.append('file', chunkData)
+      xhr.open(
+        'POST',
+        `${BASE_URL}/api/tenant/upload_model/chunk?task_id=${taskId}&chunk_index=${chunkIndex}`
+      )
+      xhr.setRequestHeader('Authorization', `Bearer ${getToken()}`)
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) onProgress(e.loaded, e.total)
+      }
+      xhr.onload = () => {
+        let data = {}
+        try { data = JSON.parse(xhr.responseText) } catch { /* 非JSON响应 */ }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(data)
+        } else {
+          reject(new Error(data.detail || `分片上传失败 (${xhr.status})`))
+        }
+      }
+      xhr.onerror = () => reject(new Error('分片上传网络错误'))
+      xhr.onabort = () => reject(new Error('分片上传已中止'))
+      xhr.send(formData)
+    }),
 
   complete: (taskId) =>
     request(`/api/tenant/upload_model/complete?task_id=${taskId}`, { method: 'POST' }),

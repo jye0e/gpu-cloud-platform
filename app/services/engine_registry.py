@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
+import os
+
 from app.config import settings
 
 
@@ -171,7 +173,8 @@ def build_engine_command(
     根据引擎类型构建容器启动命令
     """
     if custom_entrypoint:
-        return custom_entrypoint
+        # {model_path} 占位符替换：容器内模型挂载在与宿主机相同的路径
+        return [arg.replace("{model_path}", model_path) for arg in custom_entrypoint]
 
     gpu_memory_util = deploy_params.get("gpu_memory_utilization", 0.4)
     max_model_len = deploy_params.get("max_model_len", 4096)
@@ -182,7 +185,7 @@ def build_engine_command(
     if engine_type == EngineType.VLLM.value:
         cmd = [
             "--model", model_path,
-            "--served-model-name", model_path.split("/")[-1],
+            "--served-model-name", os.path.basename(model_path.rstrip("/\\")),
             "--host", "0.0.0.0",
             "--port", "8000",
             "--gpu-memory-utilization", str(gpu_memory_util),

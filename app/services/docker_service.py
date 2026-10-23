@@ -360,7 +360,11 @@ async def deploy_service(
         logger.error(f"部署失败: {e}", exc_info=True)
         service.status = ServiceStatus.ERROR
         service.error_message = str(e)
-        await db.flush()
+        # 先提交再抛错：get_db 捕获异常后会回滚，否则失败服务记录不落库
+        try:
+            await db.commit()
+        except Exception:
+            logger.warning("部署失败状态提交失败", exc_info=True)
         raise
 
 

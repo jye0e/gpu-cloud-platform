@@ -98,10 +98,10 @@ class Settings(BaseSettings):
 
     def apply_mirror(self, image: str, skip_mirror: bool = False) -> str:
         """
-        对镜像名应用国内镜像源前缀。
-        - Docker Hub 镜像 (不含 '/' 或以 'library/' 开头): 直接加前缀
-        - 已含 registry 前缀的镜像: 检查是否已在允许列表
-        - skip_mirror=True 或 IMAGE_MIRROR_PREFIX 为空: 原样返回
+        对镜像名应用国内镜像源前缀（仅限 Docker Hub 镜像）。
+        Docker 标准规则：去除 digest 后，首段含 '.' 或 ':' 或为 localhost
+        即视为完整 registry 引用，不加前缀；否则视为 Docker Hub 镜像加前缀。
+        skip_mirror=True 或 IMAGE_MIRROR_PREFIX 为空: 原样返回
         """
         if skip_mirror or not self.IMAGE_MIRROR_PREFIX:
             return image
@@ -110,11 +110,10 @@ class Settings(BaseSettings):
         if image.startswith(self.IMAGE_MIRROR_PREFIX):
             return image
 
-        # 如果镜像已经带有其他 registry（如 nvcr.io, ghcr.io, quay.io），不做替换
-        known_registries = ("nvcr.io", "ghcr.io", "quay.io", "gcr.io", "registry.cn-hangzhou.aliyuncs.com", "m.daocloud.io")
-        for reg in known_registries:
-            if image.startswith(reg):
-                return image
+        name = image.split("@", 1)[0]
+        first_segment = name.split("/", 1)[0]
+        if "." in first_segment or ":" in first_segment or first_segment == "localhost":
+            return image
 
         # Docker Hub 镜像: 添加镜像前缀
         return self.IMAGE_MIRROR_PREFIX + image

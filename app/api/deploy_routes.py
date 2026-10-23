@@ -71,6 +71,7 @@ async def list_models(
                 "model_id": m.id,
                 "model_name": m.model_name,
                 "model_format": m.model_format,
+                "model_path": m.model_path,
                 "file_size_bytes": m.file_size_bytes,
                 "file_size_gb": round(m.file_size_bytes / (1024**3), 2),
                 "sha256": (m.file_sha256[:16] + "...") if m.file_sha256 else None,

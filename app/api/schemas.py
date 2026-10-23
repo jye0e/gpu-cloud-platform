@@ -16,14 +16,36 @@ class BaseResponse(BaseModel):
 
 # ==================== 模型上传 ====================
 
+class UploadFileSpec(BaseModel):
+    """多文件模型中的单个文件描述"""
+    name: str = Field(
+        ...,
+        description="模型内相对路径，如 config.json 或 model-00001-of-00002.safetensors",
+        min_length=1,
+        max_length=4096,
+    )
+    size: int = Field(..., description="文件大小（字节）", ge=0)
+    sha256: Optional[str] = Field(None, description="可选：该文件的SHA256校验值")
+
+
 class CreateUploadRequest(BaseModel):
     """创建上传任务"""
-    model_name: str = Field(..., description="模型文件名，含扩展名", examples=["kimi-lora.safetensors"])
-    total_size: int = Field(..., description="文件总大小（字节）", gt=0)
+    model_name: str = Field(
+        ...,
+        description="单文件模式为文件名（含扩展名）；多文件模式为模型目录名",
+        examples=["kimi-lora.safetensors"],
+        min_length=1,
+        max_length=256,
+    )
+    total_size: int = Field(..., description="全部文件总大小（字节）", gt=0)
     chunk_size: int = Field(
         default=10485760,
         description="分片大小（字节），默认10MB",
         gt=0,
+    )
+    files: Optional[list[UploadFileSpec]] = Field(
+        None,
+        description="多文件模型清单：分片按清单顺序的拼接字节流编号，完成时切分写入模型目录。缺省为单文件模式",
     )
 
 
