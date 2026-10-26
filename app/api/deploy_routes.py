@@ -100,7 +100,18 @@ async def deploy_model(
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
 
-    # 2. 查找模型
+    # 2. 显存利用率不得超过管理员为租户配置的上限
+    requested_util = float(req.deploy_params.get("gpu_memory_utilization", 0.4))
+    if requested_util > tenant.gpu_memory_util + 1e-6:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"GPU 显存利用率 {requested_util:.2f} 超过租户上限 "
+                f"{tenant.gpu_memory_util:.2f}，请联系管理员调整"
+            ),
+        )
+
+    # 3. 查找模型
     result = await db.execute(
         select(TenantModel).where(
             TenantModel.id == req.model_id,
@@ -111,7 +122,7 @@ async def deploy_model(
     if model is None:
         raise HTTPException(status_code=404, detail="模型不存在")
 
-    # 3. 创建服务记录
+    # 4. 创建服务记录
     service = DeployedService(
         tenant_id=tenant.id,
         model_id=model.id,

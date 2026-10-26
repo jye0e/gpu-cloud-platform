@@ -61,6 +61,7 @@ class Tenant(Base):
     max_model_len: Mapped[int] = mapped_column(Integer, default=4096, comment="最大上下文长度")
     storage_quota_gb: Mapped[int] = mapped_column(Integer, default=50, comment="存储配额(GB)")
     qps_limit: Mapped[int] = mapped_column(Integer, default=10, comment="QPS限流")
+    max_concurrent_services: Mapped[int] = mapped_column(Integer, default=5, comment="最大并发服务数")
     gpu_device_ids: Mapped[str] = mapped_column(String(256), nullable=True, comment="分配的GPU设备ID，逗号分隔")
 
     # 元数据

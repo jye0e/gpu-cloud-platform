@@ -33,6 +33,7 @@ export default function AdminPage() {
     max_model_len: 4096,
     storage_quota_gb: 50,
     qps_limit: 10,
+    max_concurrent_services: 5,
     gpu_device_ids: '',
   })
 
@@ -43,6 +44,7 @@ export default function AdminPage() {
     max_model_len: 4096,
     storage_quota_gb: 50,
     qps_limit: 10,
+    max_concurrent_services: 5,
     gpu_device_ids: '',
   })
   const [savingQuota, setSavingQuota] = useState(false)
@@ -95,6 +97,7 @@ export default function AdminPage() {
         max_model_len: parseInt(form.max_model_len),
         storage_quota_gb: parseInt(form.storage_quota_gb),
         qps_limit: parseInt(form.qps_limit),
+        max_concurrent_services: parseInt(form.max_concurrent_services),
         gpu_device_ids: form.gpu_device_ids || null,
       })
       setNewTenantResult(resp)
@@ -130,6 +133,7 @@ export default function AdminPage() {
       max_model_len: tenant.max_model_len,
       storage_quota_gb: tenant.storage_quota_gb,
       qps_limit: tenant.qps_limit,
+      max_concurrent_services: tenant.max_concurrent_services,
       gpu_device_ids: tenant.gpu_device_ids || '',
     })
   }
@@ -142,6 +146,7 @@ export default function AdminPage() {
         max_model_len: parseInt(editForm.max_model_len),
         storage_quota_gb: parseInt(editForm.storage_quota_gb),
         qps_limit: parseInt(editForm.qps_limit),
+        max_concurrent_services: parseInt(editForm.max_concurrent_services),
         gpu_device_ids: editForm.gpu_device_ids || null,
       })
       toast('资源配额已更新', 'success')
@@ -268,6 +273,7 @@ export default function AdminPage() {
                   <th className="text-left py-3 px-2 text-xs font-medium text-slate-400">GPU 显存</th>
                   <th className="text-left py-3 px-2 text-xs font-medium text-slate-400">存储配额</th>
                   <th className="text-left py-3 px-2 text-xs font-medium text-slate-400">QPS</th>
+                  <th className="text-left py-3 px-2 text-xs font-medium text-slate-400">并发上限</th>
                   <th className="text-left py-3 px-2 text-xs font-medium text-slate-400">创建时间</th>
                   <th className="text-right py-3 px-2 text-xs font-medium text-slate-400">操作</th>
                 </tr>
@@ -301,6 +307,7 @@ export default function AdminPage() {
                       <td className="py-3 px-2 text-sm text-slate-300">{Math.round(t.gpu_memory_util * 100)}%</td>
                       <td className="py-3 px-2 text-sm text-slate-300">{t.storage_quota_gb} GB</td>
                       <td className="py-3 px-2 text-sm text-slate-300">{t.qps_limit}</td>
+                      <td className="py-3 px-2 text-sm text-slate-300">{t.max_concurrent_services}</td>
                       <td className="py-3 px-2 text-xs text-slate-500">
                         {new Date(t.created_at).toLocaleDateString('zh-CN')}
                       </td>
@@ -386,7 +393,7 @@ export default function AdminPage() {
             </p>
 
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => { setShowCreate(false); setNewTenantResult(null); setForm({ name: '', gpu_memory_util: 0.4, max_model_len: 4096, storage_quota_gb: 50, qps_limit: 10, gpu_device_ids: '' }) }}>
+              <Button variant="outline" className="flex-1" onClick={() => { setShowCreate(false); setNewTenantResult(null); setForm({ name: '', gpu_memory_util: 0.4, max_model_len: 4096, storage_quota_gb: 50, qps_limit: 10, max_concurrent_services: 5, gpu_device_ids: '' }) }}>
                 继续创建
               </Button>
               <Button className="flex-1" onClick={() => { setShowCreate(false); setNewTenantResult(null) }}>
@@ -436,6 +443,13 @@ export default function AdminPage() {
                 type="number"
                 value={form.qps_limit}
                 onChange={(e) => setForm({ ...form, qps_limit: e.target.value })}
+              />
+              <Input
+                label="最大并发服务数"
+                type="number"
+                min="1"
+                value={form.max_concurrent_services}
+                onChange={(e) => setForm({ ...form, max_concurrent_services: e.target.value })}
               />
               <Input
                 label="指定 GPU ID（可选）"
@@ -497,6 +511,13 @@ export default function AdminPage() {
               type="number"
               value={editForm.qps_limit}
               onChange={(e) => setEditForm({ ...editForm, qps_limit: e.target.value })}
+            />
+            <Input
+              label="最大并发服务数"
+              type="number"
+              min="1"
+              value={editForm.max_concurrent_services}
+              onChange={(e) => setEditForm({ ...editForm, max_concurrent_services: e.target.value })}
             />
             <Input
               label="指定 GPU ID（可选）"

@@ -149,15 +149,9 @@ async def check_tenant_can_deploy(
 ) -> bool:
     """
     检查租户是否可以部署新服务
-    - 存储配额检查
-    - 运行中服务数限制
+    - 最大并发服务数限制（上限由管理员按租户配置）
+    - 存储配额在上传 init 时校验，部署不占存储，此处不检查
     """
-    # 检查存储配额
-    from app.services.upload_service import check_storage_quota
-    if not await check_storage_quota(tenant):
-        raise ValueError("存储空间已满，无法部署新服务")
-
-    # 检查运行中服务数（单租户最多 5 个并发服务）
     result = await db.execute(
         select(DeployedService).where(
             DeployedService.tenant_id == tenant.id,
@@ -169,10 +163,11 @@ async def check_tenant_can_deploy(
         )
     )
     active_count = len(result.scalars().all())
+    max_services = tenant.max_concurrent_services or 5
 
-    if active_count >= 5:
+    if active_count >= max_services:
         raise ValueError(
-            f"已达到最大并发服务数限制（5），当前运行中: {active_count}"
+            f"已达到最大并发服务数限制（{max_services}），当前运行中: {active_count}"
         )
 
     return True

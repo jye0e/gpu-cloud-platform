@@ -77,6 +77,7 @@ async def create_tenant(
         max_model_len=req.max_model_len,
         storage_quota_gb=req.storage_quota_gb,
         qps_limit=req.qps_limit,
+        max_concurrent_services=req.max_concurrent_services,
         gpu_device_ids=req.gpu_device_ids,
     )
     db.add(tenant)
@@ -115,6 +116,7 @@ async def list_tenants(
             max_model_len=t.max_model_len,
             storage_quota_gb=t.storage_quota_gb,
             qps_limit=t.qps_limit,
+            max_concurrent_services=t.max_concurrent_services,
             gpu_device_ids=t.gpu_device_ids,
             created_at=t.created_at.isoformat(),
         )
@@ -147,6 +149,7 @@ async def get_tenant(
         max_model_len=tenant.max_model_len,
         storage_quota_gb=tenant.storage_quota_gb,
         qps_limit=tenant.qps_limit,
+        max_concurrent_services=tenant.max_concurrent_services,
         gpu_device_ids=tenant.gpu_device_ids,
         created_at=tenant.created_at.isoformat(),
     )
@@ -210,6 +213,8 @@ async def update_tenant_quota(
         tenant.storage_quota_gb = req.storage_quota_gb
     if req.qps_limit is not None:
         tenant.qps_limit = req.qps_limit
+    if req.max_concurrent_services is not None:
+        tenant.max_concurrent_services = req.max_concurrent_services
     if req.gpu_device_ids is not None:
         tenant.gpu_device_ids = req.gpu_device_ids if req.gpu_device_ids else None
 

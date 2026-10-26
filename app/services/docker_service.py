@@ -130,15 +130,24 @@ def select_gpus_for_tenant(
     策略：按可用显存降序，取满足权重容量的最少卡数（TP 下权重均分）
     """
     gpu_info = get_gpu_info()
+    # 管理员为租户绑定设备后，只允许从绑定的卡中分配
+    bound = [g.strip() for g in (tenant.gpu_device_ids or "").split(",") if g.strip()]
     if not gpu_info:
         logger.warning("无法获取 GPU 信息，默认使用 GPU 0")
-        return ["0"]
+        return bound or ["0"]
 
     usable = {}
     for gpu_id, info in gpu_info.items():
         available = (info["free_mb"] - settings.GPU_MEMORY_RESERVE_MB) * gpu_memory_util
         if available > 0:
             usable[gpu_id] = available
+
+    if bound:
+        usable = {gid: m for gid, m in usable.items() if gid in bound}
+        if not usable:
+            raise RuntimeError(
+                f"租户绑定的 GPU {bound} 不可用（设备不存在或显存不足）"
+            )
 
     if not usable:
         raise RuntimeError("没有可用的 GPU 资源")

@@ -172,13 +172,6 @@ async def get_tenant_storage_usage(tenant_id: str) -> int:
     return total
 
 
-async def check_storage_quota(tenant: Tenant) -> bool:
-    """检查租户是否超出存储配额"""
-    usage = await get_tenant_storage_usage(tenant.tenant_id)
-    quota_bytes = tenant.storage_quota_gb * 1024 * 1024 * 1024
-    return usage < quota_bytes
-
-
 async def create_upload_task(
     db: AsyncSession,
     tenant: Tenant,

@@ -6,14 +6,6 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-# ==================== 通用响应 ====================
-
-class BaseResponse(BaseModel):
-    code: int = 0
-    message: str = "success"
-    data: Optional[dict] = None
-
-
 # ==================== 模型上传 ====================
 
 class UploadFileSpec(BaseModel):
@@ -142,6 +134,7 @@ class CreateTenantRequest(BaseModel):
     max_model_len: int = Field(default=4096, gt=0)
     storage_quota_gb: int = Field(default=50, gt=0)
     qps_limit: int = Field(default=10, gt=0)
+    max_concurrent_services: int = Field(default=5, ge=1, description="最大并发服务数")
     gpu_device_ids: Optional[str] = Field(None, description="指定GPU ID，逗号分隔")
 
 
@@ -159,6 +152,7 @@ class UpdateTenantQuotaRequest(BaseModel):
     max_model_len: Optional[int] = Field(None, gt=0)
     storage_quota_gb: Optional[int] = Field(None, gt=0)
     qps_limit: Optional[int] = Field(None, gt=0)
+    max_concurrent_services: Optional[int] = Field(None, ge=1)
     gpu_device_ids: Optional[str] = None
 
 
@@ -171,14 +165,6 @@ class TenantInfoResponse(BaseModel):
     max_model_len: int
     storage_quota_gb: int
     qps_limit: int
+    max_concurrent_services: int
     gpu_device_ids: Optional[str] = None
     created_at: str
-
-
-# ==================== 资源概览 ====================
-
-class ResourceOverviewResponse(BaseModel):
-    """租户资源概览"""
-    storage: dict
-    gpu_config: dict
-    qps_limit: int

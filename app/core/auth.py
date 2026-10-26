@@ -7,6 +7,7 @@
 
 import hashlib
 import secrets
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -69,6 +70,26 @@ def verify_access_token(token: str) -> Optional[dict]:
         return None
 
 
+# 租户级 QPS 限流：tenant_id -> 最近 1 秒窗口内的请求时间戳（monotonic）
+_tenant_qps_buckets: dict[str, list[float]] = {}
+
+
+def _enforce_tenant_qps(tenant: Tenant) -> None:
+    limit = tenant.qps_limit
+    if limit is None or limit <= 0:
+        return
+    now = time.monotonic()
+    hits = [t for t in _tenant_qps_buckets.get(tenant.tenant_id, []) if now - t < 1.0]
+    if len(hits) >= limit:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"请求过于频繁，租户限流 {limit} QPS",
+            headers={"Retry-After": "1"},
+        )
+    hits.append(now)
+    _tenant_qps_buckets[tenant.tenant_id] = hits
+
+
 async def get_current_tenant(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
@@ -78,6 +99,7 @@ async def get_current_tenant(
     支持两种认证方式：
     1. API Key 直接认证（推荐）：Bearer sk_xxxx
     2. JWT Token 认证（兼容）：Bearer eyJxxxx
+    解析成功后按租户 qps_limit 执行限流
     """
     if credentials is None:
         raise HTTPException(
@@ -108,6 +130,7 @@ async def get_current_tenant(
                 detail=f"租户账户状态异常: {tenant.status.value}，请联系管理员",
             )
 
+        _enforce_tenant_qps(tenant)
         return tenant
 
     # 方式二：JWT Token 认证（兼容旧方式）
@@ -149,6 +172,7 @@ async def get_current_tenant(
             detail=f"租户账户状态异常: {tenant.status.value}，请联系管理员",
         )
 
+    _enforce_tenant_qps(tenant)
     return tenant
 
 

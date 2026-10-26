@@ -14,13 +14,14 @@ import {
 import {
   Card, Button, Select, Input, toast, PageLoader, EmptyState
 } from '../components/ui'
-import { deployApi } from '../api/client'
+import { deployApi, resourceApi } from '../api/client'
 
 export default function DeployPage() {
   const [models, setModels] = useState([])
   const [engines, setEngines] = useState([])
   const [loading, setLoading] = useState(true)
   const [deploying, setDeploying] = useState(false)
+  const [memUtilLimit, setMemUtilLimit] = useState(0.9)
 
   // 表单
   const [modelId, setModelId] = useState('')
@@ -55,9 +56,15 @@ export default function DeployPage() {
     Promise.all([
       deployApi.listModels().then(data => ({ models: data.models || [] })),
       deployApi.listEngines().then(data => ({ engines: data.engines || [] })),
-    ]).then(([modelsData, enginesData]) => {
+      resourceApi.overview().then(data => ({ resource: data })).catch(() => ({ resource: null })),
+    ]).then(([modelsData, enginesData, resourceData]) => {
       setModels(modelsData.models)
       setEngines(enginesData.engines)
+      const limit = parseFloat(resourceData.resource?.gpu_config?.gpu_memory_util_limit)
+      if (Number.isFinite(limit) && limit > 0) {
+        setMemUtilLimit(limit)
+        setParams(p => ({ ...p, gpu_memory_utilization: Math.min(p.gpu_memory_utilization, limit) }))
+      }
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -248,12 +255,17 @@ export default function DeployPage() {
                 {/* 参数网格 */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1.5">GPU 显存利用率</label>
+                    <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                      GPU 显存利用率
+                      <span className="ml-2 text-xs font-normal text-slate-500">
+                        上限 {Math.round(memUtilLimit * 100)}%
+                      </span>
+                    </label>
                     <div className="flex items-center gap-2">
                       <input
                         type="range"
                         min="0.1"
-                        max="0.9"
+                        max={memUtilLimit}
                         step="0.05"
                         value={params.gpu_memory_utilization}
                         onChange={(e) => setParams({ ...params, gpu_memory_utilization: parseFloat(e.target.value) })}
